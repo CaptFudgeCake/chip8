@@ -1,4 +1,4 @@
-use std::io::{self, Write};
+use std::{fs::File, io::{self, stdout, Read, Write}, thread, time::{self, Instant}};
 
 use crossterm::{
     cursor,
@@ -15,6 +15,7 @@ struct Chip8 {
     delay_timer: u8,
     sound_timer: u8,
     registers: [u8; 16],
+    stdout: io::Stdout
 }
 
 impl Chip8 {
@@ -22,12 +23,13 @@ impl Chip8 {
         let mut new_chip8 = Chip8 {
             memory: [0; 4096],
             display: [[false; 32]; 64],
-            program_counter: 0,
+            program_counter: 0x200,
             index_regiser: 0,
             stack: Vec::new(),
             delay_timer: 0,
             sound_timer: 0,
             registers: [0; 16],
+            stdout: stdout()
         };
 
         new_chip8.set_defaults();
@@ -36,6 +38,33 @@ impl Chip8 {
 
     fn set_defaults(&mut self) {
         self.set_fonts();
+        let _ = self.stdout.execute(cursor::Hide);
+    }
+
+    pub fn load_program(&mut self, program: &[u8]) {
+        let mut address = 0x200;
+        if (address + program.len()) > 4096 {panic!("Program too long to fit in ram, solution not implemented")}
+
+        for byte in program {
+            self.memory[address] = *byte;
+            address += 1;
+        }
+    }
+
+    pub fn start(&mut self){
+        let target_ft = time::Duration::from_secs(1) / 700;
+        // let start = time::Instant::now();
+        loop {
+            let now = time::Instant::now();
+            let command = &self.memory[(self.program_counter as usize)..(self.program_counter as usize +2)];
+            self.program_counter += 2;
+            let decoded_command = self.get_command(command);
+            self.execute_command(decoded_command);
+            self.draw_display().expect("Error drawing to screen");
+            if let Some(i) = target_ft.checked_sub(now.elapsed()) {
+                thread::sleep(i);
+            }
+        }
     }
 
     fn set_fonts(&mut self) {
@@ -87,20 +116,23 @@ impl Chip8 {
             },
             Chip8Commands::Draw(x, y, bytes) => {
                 for byte_offset in 0..=bytes {
-                    let byte = self.memory[byte_offset as usize];
+                    let byte = self.memory[self.index_regiser as usize + byte_offset as usize];
                     for i in 0..8 {
-                        let bit = byte & (0x1 << i);
+                        let bit = byte >> i;
                         let test = (bit & 0b1) != 0;
                         let x_pos = (x + i) % 64;
-                        let y_pos = (y + i) % 32;
-                        self.display[x_pos][y_pos] = test;
+                        let y_pos = (y + byte_offset as usize) % 32;
+                        if self.display[x_pos][y_pos] {
+                            self.registers[0xF] = 1;
+                        }
+                        self.display[x_pos][y_pos] ^= test;
                     }
                 }
             },
         }
     }
 
-    fn get_command(&self, command: [u8; 2]) -> Chip8Commands {
+    fn get_command(&self, command: &[u8]) -> Chip8Commands {
         let nibble1 = (command[0] & 0xF0) >> 4;
         match nibble1 {
             0 => match command {
@@ -136,23 +168,22 @@ impl Chip8 {
         }
     }
 
-    fn draw_display(self) -> io::Result<()>{
-        let mut stdout = io::stdout();
-        stdout.execute(terminal::Clear(terminal::ClearType::All))?;
+    fn draw_display(&mut self) -> io::Result<()>{
+        self.stdout.execute(terminal::Clear(terminal::ClearType::All))?;
         for y in 0..32 {
             for x in 0..64 {
                 if self.display[x][y] {
-                    stdout
+                    self.stdout
                         .queue(cursor::MoveTo(x.try_into().unwrap(), y.try_into().unwrap()))?
                         .queue(style::PrintStyledContent("█".white()))?;
                 } else {
-                    stdout
+                    self.stdout
                         .queue(cursor::MoveTo(x.try_into().unwrap(), y.try_into().unwrap()))?
                         .queue(style::PrintStyledContent("█".hidden()))?;
                 }
             }
         }
-        stdout.flush()
+        self.stdout.flush()
     }
 }
 
@@ -167,31 +198,21 @@ enum Chip8Commands {
     Draw(usize, usize, u8),           // DXYN
 }
 
-fn main() -> Result<(), io::Error> {
-    let mut stdout = io::stdout();
-    stdout.execute(terminal::Clear(terminal::ClearType::All))?;
-    for y in 0..32 {
-        for x in 0..64 {
-            if x % 2 != 0 {
-                stdout
-                    .queue(cursor::MoveTo(x.try_into().unwrap(), y.try_into().unwrap()))?
-                    .queue(style::PrintStyledContent("\u{2588}".white()))?;
-            } else {
-                stdout
-                    .queue(cursor::MoveTo(x.try_into().unwrap(), y.try_into().unwrap()))?
-                    .queue(style::PrintStyledContent("\u{2588}".hidden()))?;
-            }
-        }
-    }
-    stdout.flush()
+fn main() {
+    let mut program: Vec<u8> = Vec::new();
+    let mut file = File::open("IBM Logo.ch8").unwrap(); 
+    file.read_to_end(&mut program).expect("Failed to read program");
+    let mut emulator = Chip8::new();
+    emulator.load_program(&program);
+    emulator.start();
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{Chip8, Chip8Commands};
+    use super::*;
 
     #[test]
-    fn test_command_recognition() {
+    fn test_command_decode() {
         let emulator = Chip8::new();
         let commands: [[u8; 2]; 7] = [
             [0x00, 0xE0],
@@ -213,10 +234,56 @@ mod test {
         ];
 
         for (i, command) in commands.into_iter().enumerate() {
-            let result = emulator.get_command(command);
+            let result = emulator.get_command(&command);
             let expected = &expected[i];
 
             assert_eq!(result, *expected)
         }
+    }
+
+    #[test]
+    fn test_draw_command() {
+        let mut emulator = Chip8::new();
+        emulator.memory[0x200] = 0xFF;
+        emulator.memory[0x201] = 0xFF;
+        emulator.memory[0x202] = 0xFF;
+        emulator.memory[0x203] = 0xFF;
+        emulator.index_regiser = 0x200;
+
+        let command = Chip8Commands::Draw(3, 2, 4);
+
+        emulator.execute_command(command);
+        
+        for x in 3..(3+8) {
+            for y in 2..(2+4) {
+                assert!(emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
+            }
+        }
+    }
+
+    #[test]
+    fn test_draw_ovewrite(){
+        let mut emulator = Chip8::new();
+        emulator.memory[0x200] = 0xFF;
+        emulator.memory[0x201] = 0xFF;
+        emulator.memory[0x202] = 0xFF;
+        emulator.memory[0x203] = 0xFF;
+        emulator.index_regiser = 0x200;
+        emulator.display[3][2] = true;
+
+        let command = Chip8Commands::Draw(3, 2, 4);
+
+        emulator.execute_command(command);
+        
+        for x in 3..(3+8) {
+            for y in 2..(2+4) {
+                if x == 3 && y == 2 {
+                    assert!(!emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
+                } else {
+                    assert!(emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
+                }
+            }
+        }
+        assert_eq!(emulator.registers[0xF], 1)
     }
 }
