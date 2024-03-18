@@ -174,11 +174,11 @@ impl Chip8 {
             for x in 0..64 {
                 if self.display[x][y] {
                     self.stdout
-                        .queue(cursor::MoveTo(x.try_into().unwrap(), y.try_into().unwrap()))?
+                        .queue(cursor::MoveTo(x.try_into().unwrap(), (y as u16) + 1))?
                         .queue(style::PrintStyledContent("█".white()))?;
                 } else {
                     self.stdout
-                        .queue(cursor::MoveTo(x.try_into().unwrap(), y.try_into().unwrap()))?
+                        .queue(cursor::MoveTo(x.try_into().unwrap(), (y as u16) + 1))?
                         .queue(style::PrintStyledContent("█".hidden()))?;
                 }
             }
@@ -239,6 +239,61 @@ mod test {
 
             assert_eq!(result, *expected)
         }
+    }
+
+    #[test]
+    fn test_clear_screen() {
+        let mut emulator = Chip8::new();
+        for row in emulator.display {
+            for mut pixel in row {
+                pixel = true;
+            }
+        }
+
+        emulator.execute_command(Chip8Commands::ClearScreen);
+
+        for row in emulator.display {
+            for pixel in row {
+                assert!(!pixel)
+            }
+        }
+    }
+
+    #[test]
+    fn test_jump(){
+        let mut emulator = Chip8::new();
+
+        emulator.execute_command(Chip8Commands::Jump(0x22A));
+
+        assert_eq!(emulator.program_counter, 0x22a);
+    }
+
+    #[test]
+    fn test_add_to_register(){
+        let mut emulator = Chip8::new();
+
+        emulator.execute_command(Chip8Commands::AddValueToRegister(2, 6));
+        emulator.execute_command(Chip8Commands::AddValueToRegister(2, 9));
+
+        assert_eq!(emulator.registers[2], 15);
+    }
+
+    #[test]
+    fn test_set_index_register(){
+        let mut emulator = Chip8::new();
+
+        emulator.execute_command(Chip8Commands::SetIndexRegister(0xFFF));
+
+        assert_eq!(emulator.index_regiser, 0xFFF);
+    }
+
+    #[test]
+    fn test_set_register(){
+        let mut emulator = Chip8::new();
+
+        emulator.execute_command(Chip8Commands::SetRegister(2, 69));
+
+        assert_eq!(emulator.registers[2], 69);
     }
 
     #[test]
