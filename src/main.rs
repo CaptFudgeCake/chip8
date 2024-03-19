@@ -1,4 +1,4 @@
-use std::{fs::File, io::{self, stdout, Read, Write}, thread, time::{self, Instant}};
+use std::{fs::File, io::{self, stdout, Read, Write}, thread, time::{self, Instant}, usize};
 
 use crossterm::{
     cursor,
@@ -61,7 +61,7 @@ impl Chip8 {
             let now = time::Instant::now();
             let command = &self.memory[(self.program_counter as usize)..(self.program_counter as usize +2)];
             self.program_counter += 2;
-            let decoded_command = self.get_command(command);
+            let decoded_command = self.decode_command(command);
             self.execute_command(decoded_command);
             if self.display_changed {
                 self.draw_display().expect("Failed to draw display to console");
@@ -112,17 +112,17 @@ impl Chip8 {
                 self.program_counter = address;
             },
             Chip8Commands::SetRegister(register, value) => {
-                self.registers[register] = value;
+                self.registers[register as usize] = value;
             },
             Chip8Commands::AddValueToRegister(register, value) => {
-                self.registers[register] += value;
+                self.registers[register as usize] += value;
             },
             Chip8Commands::SetIndexRegister(value) => {
                 self.index_regiser = value;
             },
             Chip8Commands::Draw(x, y, bytes) => {
-                let x_start = (self.registers[x] as usize) % 64;
-                let y_start = (self.registers[y] as usize) % 32;
+                let x_start = (self.registers[x as usize] as usize) % 64;
+                let y_start = (self.registers[y as usize] as usize) % 32;
                 for byte_offset in 0..bytes {
                     let byte = self.memory[self.index_regiser as usize + byte_offset as usize];
                     for i in 0..8 {
@@ -140,42 +140,90 @@ impl Chip8 {
 
                 self.display_changed = true;
             },
+            Chip8Commands::SkipEqualX(_, _) => todo!(),
+            Chip8Commands::SkipNotEqualX(_, _) => todo!(),
+            Chip8Commands::SkipEqualXY(_, _) => todo!(),
+            Chip8Commands::Load(_, _) => todo!(),
+            Chip8Commands::OR(_, _) => todo!(),
+            Chip8Commands::AND(_, _) => todo!(),
+            Chip8Commands::XOR(_, _) => todo!(),
+            Chip8Commands::ADD(_, _) => todo!(),
+            Chip8Commands::SUB(_, _) => todo!(),
+            Chip8Commands::ShiftRight(_, _) => todo!(),
+            Chip8Commands::ShiftLeft(_, _) => todo!(),
+            Chip8Commands::SkipNotEqualXY(_, _) => todo!(),
+            Chip8Commands::BinaryCodedDecimal(_) => todo!(),
+            Chip8Commands::StoreRegisters(_) => todo!(),
         }
     }
 
-    fn get_command(&self, command: &[u8]) -> Chip8Commands {
-        let nibble1 = (command[0] & 0xF0) >> 4;
-        match nibble1 {
+    fn decode_command(&self, command: &[u8]) -> Chip8Commands {
+        let instruction_id = (command[0] & 0xF0) >> 4;
+        match instruction_id {
             0 => match command {
                 [0x00, 0xE0] => Chip8Commands::ClearScreen,
                 [0x00, 0xEE] => Chip8Commands::Return,
                 _ => panic!("0NNN command can't be run since it is dependant on specific hardware"),
             },
-            1 => {
+            3 | 4 | 6 | 7 => {
+                let x = command[0] & 0xF;
+                match instruction_id {
+                    3 => Chip8Commands::SkipEqualX(x.into(), command[1]),
+                    4 => Chip8Commands::SkipNotEqualX(x.into(), command[1]),
+                    6 => Chip8Commands::SetRegister(x.into(), command[1]),
+                    7 => Chip8Commands::AddValueToRegister(x.into(), command[1]),
+                    _ => panic!("Instruction {:x?} not found", command),
+                }
+            }
+            8 => {
+                let x = command[0] & 0xF;
+                let y = (command[1] >> 4) & 0xF;
+                let nibble4 = command[1] & 0xF;
+                match nibble4 {
+                    0x0 => Chip8Commands::Load(x.into(), y.into()),
+                    0x1 => Chip8Commands::OR(x.into(), y.into()),
+                    0x2 => Chip8Commands::AND(x.into(), y.into()),
+                    0x3 => Chip8Commands::XOR(x.into(), y.into()),
+                    0x4 => Chip8Commands::ADD(x.into(), y.into()),
+                    0x5 => Chip8Commands::SUB(x.into(), y.into()),
+                    0x6 => Chip8Commands::ShiftRight(x.into(), y.into()),
+                    0xE => Chip8Commands::ShiftLeft(x.into(), y.into()),
+                    _ => panic!("Instruction {:x?} not found", command)
+                }
+            }
+            0xF => {
+                let x = command[0] & 0xF;
+                match command[1] {
+                    0x33 => Chip8Commands::BinaryCodedDecimal(x.into()),
+                    0x55 => Chip8Commands::StoreRegisters(x.into()),
+                    _ => panic!("Instruction {:x?} not found", command)
+                }
+            }
+            1 | 0xA => {
                 let address = ((command[0] as u16 & 0xF) << 8) | command[1] as u16;
-                Chip8Commands::Jump(address)
+                match instruction_id {
+                    1 => Chip8Commands::Jump(address),
+                    0xA => Chip8Commands::SetIndexRegister(address),
+                    _ => panic!("Instruction {:x?} not found", command)
+                }
             }
-            6 => {
-                let nibble2 = command[0] & 0xF;
-                let value = command[1];
-                Chip8Commands::SetRegister(nibble2.into(), value)
+            5 => {
+                let x = command[0] & 0xF;
+                let y = (command[1] >> 4) & 0xF;
+                Chip8Commands::SkipEqualXY(x.into(), y.into())
             }
-            7 => {
-                let nibble2 = command[0] & 0xF;
-                let value = command[1];
-                Chip8Commands::AddValueToRegister(nibble2.into(), value)
-            }
-            0xA => {
-                let address = ((command[0] as u16 & 0xF) << 8) | command[1] as u16;
-                Chip8Commands::SetIndexRegister(address)
+            9 => {
+                let x = command[0] & 0xF;
+                let y = (command[1] >> 4) & 0xF;
+                Chip8Commands::SkipNotEqualXY(x.into(), y.into())
             }
             0xD => {
-                let nibble2 = command[0] & 0xF;
-                let nibble3 = (command[1] & 0xF0) >> 4;
-                let nibble4 = command[1] & 0xF;
-                Chip8Commands::Draw(nibble2.into(), nibble3.into(), nibble4)
+                let x = command[0] & 0xF;
+                let y = (command[1] & 0xF0) >> 4;
+                let bytes = command[1] & 0xF;
+                Chip8Commands::Draw(x.into(), y.into(), bytes)
             }
-            _ => panic!("Command {:x?} not found", command),
+            _ => panic!("Instruction {:x?} not found", command),
         }
     }
 
@@ -202,10 +250,24 @@ enum Chip8Commands {
     ClearScreen,                // 00E0
     Return,                     // 00EE
     Jump(u16),                  // 1NNN
-    SetRegister(usize, u8),        // 6XNN
-    AddValueToRegister(usize, u8), // 7XNN
+    SkipEqualX(u8, u8),         // 3XNN
+    SkipNotEqualX(u8, u8),      // 4XNN	
+    SkipEqualXY(u8, u8),        // 5XY0	
+    SetRegister(u8, u8),        // 6XNN
+    AddValueToRegister(u8, u8), // 7XNN
+    Load(u8, u8),               // 8XY0	
+    OR(u8, u8),                 // 8XY1	
+    AND(u8, u8),                // 8XY2	
+    XOR(u8, u8),                // 8XY3	
+    ADD(u8, u8),                // 8XY4	
+    SUB(u8, u8),                // 8XY5
+    ShiftRight(u8, u8),         // 8XY6
+    ShiftLeft(u8, u8),          // 8XYE
+    SkipNotEqualXY(u8, u8),     // 9XY0	
     SetIndexRegister(u16),      // ANNN
-    Draw(usize, usize, u8),           // DXYN
+    Draw(u8, u8, u8),           // DXYN
+    BinaryCodedDecimal(u8),     // FX33
+    StoreRegisters(u8),         // FX55
 }
 
 fn main() {
@@ -224,7 +286,7 @@ mod test {
     #[test]
     fn test_command_decode() {
         let emulator = Chip8::new();
-        let commands: [[u8; 2]; 7] = [
+        let commands: [[u8; 2]; 21] = [
             [0x00, 0xE0],
             [0x00, 0xEE],
             [0x11, 0x11],
@@ -232,6 +294,20 @@ mod test {
             [0x75, 0x53],
             [0xAD, 0xFF],
             [0xD3, 0x28],
+            [0x30, 0x05],
+            [0x41, 0x45],
+            [0x5A, 0xD0],
+            [0x87, 0xA0],
+            [0x89, 0x21],
+            [0x8A, 0x32],
+            [0x8B, 0x43],
+            [0x8C, 0x54],
+            [0x8D, 0x65],
+            [0x8E, 0x76],
+            [0x8F, 0x8E],
+            [0x90, 0x90],
+            [0xF3, 0x33],
+            [0xF6, 0x55]
         ];
         let expected = [
             Chip8Commands::ClearScreen,
@@ -241,10 +317,24 @@ mod test {
             Chip8Commands::AddValueToRegister(5, 0x53),
             Chip8Commands::SetIndexRegister(0xDFF),
             Chip8Commands::Draw(3, 2, 8),
+            Chip8Commands::SkipEqualX(0, 5),          
+            Chip8Commands::SkipNotEqualX(1, 0x45),       
+            Chip8Commands::SkipEqualXY(0xA, 0xD),      
+            Chip8Commands::Load(7, 0xA),             
+            Chip8Commands::OR(9, 2),               
+            Chip8Commands::AND(0xA, 3),              
+            Chip8Commands::XOR(0xB, 4),              
+            Chip8Commands::ADD(0xC, 5),              
+            Chip8Commands::SUB(0xD, 6),              
+            Chip8Commands::ShiftRight(0xE, 7),       
+            Chip8Commands::ShiftLeft(0xF, 8),        
+            Chip8Commands::SkipNotEqualXY(0x0, 9),   
+            Chip8Commands::BinaryCodedDecimal(3),      
+            Chip8Commands::StoreRegisters(6),          
         ];
 
         for (i, command) in commands.into_iter().enumerate() {
-            let result = emulator.get_command(&command);
+            let result = emulator.decode_command(&command);
             let expected = &expected[i];
 
             assert_eq!(result, *expected)
@@ -417,7 +507,7 @@ mod test {
     }
 
     #[test]
-    fn test_draw_order() {
+    fn test_draw_bit_order() {
         let mut emulator = Chip8::new();
         emulator.memory[0x200] = 0b11110000;
         emulator.index_regiser = 0x200;
