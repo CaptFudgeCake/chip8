@@ -119,6 +119,7 @@ impl Chip8 {
                 self.registers[register as usize] = value;
             },
             Chip8Commands::AddValueToRegister(register, value) => {
+                // (self.registers[register as usize], _) = self.registers[register as usize].overflowing_add(value);
                 self.registers[register as usize] += value;
             },
             Chip8Commands::SetIndexRegister(value) => {
@@ -330,7 +331,7 @@ enum Chip8Commands {
 
 fn main() {
     let mut program: Vec<u8> = Vec::new();
-    let mut file = File::open("IBM Logo.ch8").unwrap(); 
+    let mut file = File::open("test_opcode.ch8").unwrap(); 
     file.read_to_end(&mut program).expect("Failed to read program");
     let mut emulator = Chip8::new();
     emulator.load_program(&program);
@@ -434,6 +435,16 @@ mod test {
         emulator.execute_command(Chip8Commands::AddValueToRegister(2, 9));
 
         assert_eq!(emulator.registers[2], 15);
+    }
+    
+    #[test]
+    fn test_add_to_register_overflow_shouldnt_fail(){
+        let mut emulator = Chip8::new();
+
+        emulator.execute_command(Chip8Commands::AddValueToRegister(2, 129));
+        emulator.execute_command(Chip8Commands::AddValueToRegister(2, 128));
+
+        assert_eq!(emulator.registers[2], 1);
     }
 
     #[test]
