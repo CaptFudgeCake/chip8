@@ -202,8 +202,16 @@ impl Chip8 {
                     self.program_counter += 2
                 }
             },
-            Chip8Commands::BinaryCodedDecimal(_) => todo!(),
-            Chip8Commands::StoreRegisters(_) => todo!(),
+            Chip8Commands::BinaryCodedDecimal(x) => {
+                self.memory[self.index_regiser as usize] = self.registers[x as usize] / 100;
+                self.memory[self.index_regiser as usize+1] = self.registers[x as usize] % 100 / 10;
+                self.memory[self.index_regiser as usize+2] = self.registers[x as usize] % 100 % 10;
+            },
+            Chip8Commands::StoreRegisters(x) => {
+                for i in 0..=(x as usize) {
+                    self.memory[self.index_regiser as usize + i] = self.registers[i];
+                }
+            },
         }
     }
 
@@ -949,7 +957,7 @@ mod test {
         emulator.registers[6] = 67;
         emulator.registers[7] = 88;
 
-        emulator.execute_command(Chip8Commands::BinaryCodedDecimal(7));
+        emulator.execute_command(Chip8Commands::StoreRegisters(7));
 
         assert_eq!(emulator.memory[0x200], 30);
         assert_eq!(emulator.memory[0x201], 12);
