@@ -869,4 +869,96 @@ mod test {
         assert_eq!(emulator.registers[0], 0xFE);
         assert_eq!(emulator.registers[0xF], 0);
     }
+
+    #[test]
+    fn test_binary_coded_decimal_htu() {
+        let mut emulator = Chip8::new();
+        emulator.index_regiser = 0x200;
+        emulator.registers[0] = 235;
+
+        emulator.execute_command(Chip8Commands::BinaryCodedDecimal(0));
+
+        assert_eq!(emulator.memory[0x200], 2);
+        assert_eq!(emulator.memory[0x201], 3);
+        assert_eq!(emulator.memory[0x202], 5);
+    }
+
+    #[test]
+    fn test_binary_coded_decimal_hu() {
+        let mut emulator = Chip8::new();
+        emulator.index_regiser = 0x200;
+        emulator.registers[0] = 205;
+
+        emulator.execute_command(Chip8Commands::BinaryCodedDecimal(0));
+
+        assert_eq!(emulator.memory[0x200], 2);
+        assert_eq!(emulator.memory[0x201], 0);
+        assert_eq!(emulator.memory[0x202], 5);
+    }
+
+    #[test]
+    fn test_binary_coded_decimal_u() {
+        
+        let mut emulator = Chip8::new();
+        emulator.index_regiser = 0x200;
+        emulator.registers[0] = 5;
+
+        emulator.execute_command(Chip8Commands::BinaryCodedDecimal(0));
+
+        assert_eq!(emulator.memory[0x200], 0);
+        assert_eq!(emulator.memory[0x201], 0);
+        assert_eq!(emulator.memory[0x202], 5);
+    }
+
+    #[test]
+    fn test_binary_coded_decimal_h() {
+        let mut emulator = Chip8::new();
+        emulator.index_regiser = 0x200;
+        emulator.registers[0] = 200;
+
+        emulator.execute_command(Chip8Commands::BinaryCodedDecimal(0));
+
+        assert_eq!(emulator.memory[0x200], 2);
+        assert_eq!(emulator.memory[0x201], 0);
+        assert_eq!(emulator.memory[0x202], 0);
+    }
+
+    #[test]
+    fn test_binary_coded_decimal_t() {
+        let mut emulator = Chip8::new();
+        emulator.index_regiser = 0x200;
+        emulator.registers[0] = 30;
+
+        emulator.execute_command(Chip8Commands::BinaryCodedDecimal(0));
+
+        assert_eq!(emulator.memory[0x200], 0);
+        assert_eq!(emulator.memory[0x201], 3);
+        assert_eq!(emulator.memory[0x202], 0);
+    }
+
+    #[test]
+    fn test_store_registers_in_memory(){
+        let mut emulator = Chip8::new();
+        emulator.index_regiser = 0x200;
+        emulator.registers[0] = 30;
+        emulator.registers[1] = 12;
+        emulator.registers[2] = 89;
+        emulator.registers[3] = 23;
+        emulator.registers[4] = 65;
+        emulator.registers[5] = 34;
+        emulator.registers[6] = 67;
+        emulator.registers[7] = 88;
+
+        emulator.execute_command(Chip8Commands::BinaryCodedDecimal(7));
+
+        assert_eq!(emulator.memory[0x200], 30);
+        assert_eq!(emulator.memory[0x201], 12);
+        assert_eq!(emulator.memory[0x202], 89);
+        assert_eq!(emulator.memory[0x203], 23);
+        assert_eq!(emulator.memory[0x204], 65);
+        assert_eq!(emulator.memory[0x205], 34);
+        assert_eq!(emulator.memory[0x206], 67);
+        assert_eq!(emulator.memory[0x207], 88);
+
+    }
 }
