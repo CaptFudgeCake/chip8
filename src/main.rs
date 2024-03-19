@@ -159,14 +159,44 @@ impl Chip8 {
                     self.program_counter += 2
                 }
             },
-            Chip8Commands::Load(x, value) => {self.registers[x as usize] = value},
-            Chip8Commands::OR(_, _) => todo!(),
-            Chip8Commands::AND(_, _) => todo!(),
-            Chip8Commands::XOR(_, _) => todo!(),
-            Chip8Commands::ADD(_, _) => todo!(),
-            Chip8Commands::SUB(_, _) => todo!(),
-            Chip8Commands::ShiftRight(_, _) => todo!(),
-            Chip8Commands::ShiftLeft(_, _) => todo!(),
+            Chip8Commands::Load(x, y) => {self.registers[x as usize] = self.registers[y as usize]},
+            Chip8Commands::OR(x, y) => {
+                self.registers[x as usize] |= self.registers[y as usize];
+            },
+            Chip8Commands::AND(x, y) => {
+                self.registers[x as usize] &= self.registers[y as usize];
+            },
+            Chip8Commands::XOR(x, y) => {
+                self.registers[x as usize] ^= self.registers[y as usize];
+            },
+            Chip8Commands::ADD(x, y) => {
+                let (value, overflow) = self.registers[x as usize].overflowing_add(self.registers[y as usize]);
+                self.registers[x as usize] = value;
+                self.registers[0xF] = overflow as u8;
+            },
+            Chip8Commands::SUB(x, y) => {
+                let (value, overflow) = self.registers[x as usize].overflowing_sub(self.registers[y as usize]);
+                self.registers[x as usize] = value;
+                self.registers[0xF] = !overflow as u8;
+            },
+            Chip8Commands::ShiftRight(x, y) => {
+                if self.use_old_bit_shift{
+                    self.registers[x as usize] = self.registers[y as usize] >> 1;
+                    self.registers[0xF] = self.registers[y as usize] & 0b1;
+                } else {
+                    self.registers[0xF] = self.registers[x as usize] & 0b1;
+                    self.registers[x as usize] = self.registers[x as usize] >> 1;
+                }
+            },
+            Chip8Commands::ShiftLeft(x, y) => {
+                if self.use_old_bit_shift{
+                    self.registers[x as usize] = self.registers[y as usize] << 1;
+                    self.registers[0xF] = (self.registers[y as usize] & 0x80) >> 7;
+                } else {
+                    self.registers[0xF] = (self.registers[x as usize] & 0x80) >> 7;
+                    self.registers[x as usize] = self.registers[x as usize] << 1;
+                }
+            },
             Chip8Commands::SkipNotEqualXY(x, y) => {
                 if self.registers[x as usize] != self.registers[y as usize] {
                     self.program_counter += 2
@@ -661,16 +691,6 @@ mod test {
     }
 
     #[test]
-    fn test_load() {
-        let mut emulator = Chip8::new();
-        let command = Chip8Commands::Load(3, 69);
-
-        emulator.execute_command(command);
-
-        assert_eq!(emulator.registers[3], 69)
-    }
-
-    #[test]
     fn test_load_register_to_register(){
         let mut emulator = Chip8::new();
         emulator.registers[0] = 0;
@@ -762,7 +782,7 @@ mod test {
     }
 
     #[test]
-    fn test_shift_right_bit_1() {
+    fn test_shift_right_bit_0() {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 0xFE;
         emulator.execute_command(Chip8Commands::ShiftRight(0, 5));
@@ -772,11 +792,9 @@ mod test {
     }
 
     #[test]
-    fn test_shift_right_bit_0() {
+    fn test_shift_right_bit_1() {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 0xFF;
-        emulator.registers[5] = 5;
-
         emulator.execute_command(Chip8Commands::ShiftRight(0, 5));
 
         assert_eq!(emulator.registers[0], 0x7F);
@@ -784,7 +802,7 @@ mod test {
     }
 
     #[test]
-    fn test_shift_right_bit_1_vy_used() {
+    fn test_shift_right_bit_0_vy_used() {
         let mut emulator = Chip8::new();
         emulator.use_old_bit_shift = true;
         emulator.registers[5] = 0xFE;
@@ -796,7 +814,7 @@ mod test {
     }
 
     #[test]
-    fn test_shift_right_bit_0_vy_used() {
+    fn test_shift_right_bit_1_vy_used() {
         let mut emulator = Chip8::new();
         emulator.use_old_bit_shift = true;
         emulator.registers[5] = 0xFF;
@@ -805,5 +823,50 @@ mod test {
 
         assert_eq!(emulator.registers[0], 0x7F);
         assert_eq!(emulator.registers[0xF], 1);
+    }
+
+    #[test]
+    fn test_shift_left_bit_1() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 0xFF;
+        emulator.execute_command(Chip8Commands::ShiftLeft(0, 5));
+
+        assert_eq!(emulator.registers[0], 0xFE);
+        assert_eq!(emulator.registers[0xF], 1);
+    }
+
+    #[test]
+    fn test_shift_left_bit_0() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 0x7F;
+
+        emulator.execute_command(Chip8Commands::ShiftLeft(0, 5));
+
+        assert_eq!(emulator.registers[0], 0xFE);
+        assert_eq!(emulator.registers[0xF], 0);
+    }
+
+    #[test]
+    fn test_shift_left_bit_1_vy_used() {
+        let mut emulator = Chip8::new();
+        emulator.use_old_bit_shift = true;
+        emulator.registers[5] = 0xFF;
+
+        emulator.execute_command(Chip8Commands::ShiftLeft(0, 5));
+
+        assert_eq!(emulator.registers[0], 0xFE);
+        assert_eq!(emulator.registers[0xF], 1);
+    }
+
+    #[test]
+    fn test_shift_left_bit_0_vy_used() {
+        let mut emulator = Chip8::new();
+        emulator.use_old_bit_shift = true;
+        emulator.registers[5] = 0x7F;
+
+        emulator.execute_command(Chip8Commands::ShiftLeft(0, 5));
+
+        assert_eq!(emulator.registers[0], 0xFE);
+        assert_eq!(emulator.registers[0xF], 0);
     }
 }
