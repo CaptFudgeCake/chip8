@@ -107,7 +107,9 @@ impl Chip8 {
                     }
                 }
             },
-            Chip8Commands::Return => todo!(),
+            Chip8Commands::Return => {
+                self.program_counter = self.stack.pop().expect("No value on stack to return to");
+            },
             Chip8Commands::Jump(address) => {
                 self.program_counter = address;
             },
@@ -140,9 +142,21 @@ impl Chip8 {
 
                 self.display_changed = true;
             },
-            Chip8Commands::SkipEqualX(_, _) => todo!(),
-            Chip8Commands::SkipNotEqualX(_, _) => todo!(),
-            Chip8Commands::SkipEqualXY(_, _) => todo!(),
+            Chip8Commands::SkipEqualX(x, value) => {
+                if self.registers[x as usize] == value {
+                    self.program_counter += 2
+                }
+            },
+            Chip8Commands::SkipNotEqualX(x, value) => {
+                if self.registers[x as usize] != value {
+                    self.program_counter += 2
+                }
+            },
+            Chip8Commands::SkipEqualXY(x, y) => {
+                if self.registers[x as usize] == self.registers[y as usize] {
+                    self.program_counter += 2
+                }
+            },
             Chip8Commands::Load(_, _) => todo!(),
             Chip8Commands::OR(_, _) => todo!(),
             Chip8Commands::AND(_, _) => todo!(),
@@ -151,7 +165,11 @@ impl Chip8 {
             Chip8Commands::SUB(_, _) => todo!(),
             Chip8Commands::ShiftRight(_, _) => todo!(),
             Chip8Commands::ShiftLeft(_, _) => todo!(),
-            Chip8Commands::SkipNotEqualXY(_, _) => todo!(),
+            Chip8Commands::SkipNotEqualXY(x, y) => {
+                if self.registers[x as usize] != self.registers[y as usize] {
+                    self.program_counter += 2
+                }
+            },
             Chip8Commands::BinaryCodedDecimal(_) => todo!(),
             Chip8Commands::StoreRegisters(_) => todo!(),
         }
@@ -529,5 +547,114 @@ mod test {
         }
     }
 
+    #[test]
+    fn test_return() {
+        let mut emulator = Chip8::new();
+        emulator.stack = vec![0x208];
+        emulator.program_counter = 0x500;
 
+        emulator.execute_command(Chip8Commands::Return);
+
+        assert_eq!(emulator.program_counter, 0x208);
+    }
+
+    #[test]
+    fn test_skip_equal_to_register(){
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 6;
+        emulator.program_counter = 0x200;
+        let command = Chip8Commands::SkipEqualX(0, 0x6);
+
+        emulator.execute_command(command);
+
+        assert_eq!(emulator.program_counter, 0x202)
+    }
+
+    #[test]
+    fn test_skip_equal_to_register_not_equal(){
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 7;
+        emulator.program_counter = 0x200;
+        let command = Chip8Commands::SkipEqualX(0, 0x6);
+
+        emulator.execute_command(command);
+
+        assert_eq!(emulator.program_counter, 0x200)
+    }
+
+    #[test]
+    fn test_not_skip_equal_to_register(){
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 6;
+        emulator.program_counter = 0x200;
+        let command = Chip8Commands::SkipNotEqualX(0, 0x7);
+
+        emulator.execute_command(command);
+
+        assert_eq!(emulator.program_counter, 0x202)
+    }
+
+    #[test]
+    fn test_skip_not_equal_to_register_equal(){
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 7;
+        emulator.program_counter = 0x200;
+        let command = Chip8Commands::SkipNotEqualX(0, 0x7);
+
+        emulator.execute_command(command);
+
+        assert_eq!(emulator.program_counter, 0x200)
+    }
+
+    #[test]
+    fn test_not_equal_to_registers(){
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 6;
+        emulator.registers[1] = 6;
+        emulator.program_counter = 0x200;
+        let command = Chip8Commands::SkipEqualXY(0, 1);
+
+        emulator.execute_command(command);
+
+        assert_eq!(emulator.program_counter, 0x202)
+    }
+
+    #[test]
+    fn test_skip_equal_to_registers_not_equal(){
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 7;
+        emulator.registers[1] = 6;
+        emulator.program_counter = 0x200;
+        let command = Chip8Commands::SkipEqualXY(0, 1);
+
+        emulator.execute_command(command);
+
+        assert_eq!(emulator.program_counter, 0x200)
+    }
+
+    #[test]
+    fn test_not_not_equal_to_registers(){
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 6;
+        emulator.registers[1] = 6;
+        emulator.program_counter = 0x200;
+        let command = Chip8Commands::SkipNotEqualXY(0, 1);
+
+        emulator.execute_command(command);
+
+        assert_eq!(emulator.program_counter, 0x200)
+    }
+
+    #[test]
+    fn test_skip_not_equal_to_registers_equal(){
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 7;
+        emulator.registers[1] = 6;
+        emulator.program_counter = 0x200;
+        let command = Chip8Commands::SkipNotEqualXY(0, 1);
+
+        emulator.execute_command(command);
+
+        assert_eq!(emulator.program_counter, 0x202)
+    }
 }
