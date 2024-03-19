@@ -15,7 +15,8 @@ struct Chip8 {
     delay_timer: u8,
     sound_timer: u8,
     registers: [u8; 16],
-    stdout: io::Stdout
+    stdout: io::Stdout,
+    display_changed: bool
 }
 
 impl Chip8 {
@@ -29,7 +30,8 @@ impl Chip8 {
             delay_timer: 0,
             sound_timer: 0,
             registers: [0; 16],
-            stdout: stdout()
+            stdout: stdout(),
+            display_changed: false
         };
 
         new_chip8.set_defaults();
@@ -61,7 +63,10 @@ impl Chip8 {
             self.program_counter += 2;
             let decoded_command = self.get_command(command);
             self.execute_command(decoded_command);
-            self.draw_display().expect("Error drawing to screen");
+            if self.display_changed {
+                self.draw_display().expect("Failed to draw display to console");
+                self.display_changed = false;
+            }
             if let Some(i) = target_ft.checked_sub(now.elapsed()) {
                 thread::sleep(i);
             }
@@ -121,17 +126,19 @@ impl Chip8 {
                 for byte_offset in 0..bytes {
                     let byte = self.memory[self.index_regiser as usize + byte_offset as usize];
                     for i in 0..8 {
-                        let bit = ((byte >> i) & 0b1) != 0;
+                        let bit = ((byte >> 7-i) & 0b1) != 0;
                         let x_pos = x_start + i;
                         let y_pos = y_start + byte_offset as usize;
                         if x_pos < 64 && y_pos < 32 {
-                            if self.display[x_pos][y_pos] {
+                            if self.display[x_pos][y_pos] != bit {
                                 self.registers[0xF] = 1;
                             }
                             self.display[x_pos][y_pos] ^= bit;
                         }
                     }
                 }
+
+                self.display_changed = true;
             },
         }
     }
@@ -412,7 +419,7 @@ mod test {
     #[test]
     fn test_draw_order() {
         let mut emulator = Chip8::new();
-        emulator.memory[0x200] = 0b01100110;
+        emulator.memory[0x200] = 0b11110000;
         emulator.index_regiser = 0x200;
         emulator.registers[0] = 0;
         emulator.registers[1] = 0;
@@ -423,12 +430,8 @@ mod test {
         
         for x in 0..64 {
             for y in 0..32 {
-                if y == 0 && (0..8).contains(&x){
-                    if x == 0 || x == 3 || x == 4 || x == 7 {
-                        assert!(!emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
-                    } else {
-                        assert!(emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
-                    }
+                if y == 0 && (0..4).contains(&x){
+                    assert!(emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
                 } else {
                     assert!(!emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
                 }
