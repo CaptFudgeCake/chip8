@@ -119,8 +119,7 @@ impl Chip8 {
                 self.registers[register as usize] = value;
             },
             Chip8Commands::AddValueToRegister(register, value) => {
-                // (self.registers[register as usize], _) = self.registers[register as usize].overflowing_add(value);
-                self.registers[register as usize] += value;
+                (self.registers[register as usize], _) = self.registers[register as usize].overflowing_add(value);
             },
             Chip8Commands::SetIndexRegister(value) => {
                 self.index_regiser = value;
