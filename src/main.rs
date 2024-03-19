@@ -16,7 +16,8 @@ struct Chip8 {
     sound_timer: u8,
     registers: [u8; 16],
     stdout: io::Stdout,
-    display_changed: bool
+    display_changed: bool,
+    use_old_bit_shift: bool
 }
 
 impl Chip8 {
@@ -31,7 +32,8 @@ impl Chip8 {
             sound_timer: 0,
             registers: [0; 16],
             stdout: stdout(),
-            display_changed: false
+            display_changed: false,
+            use_old_bit_shift: false
         };
 
         new_chip8.set_defaults();
@@ -157,7 +159,7 @@ impl Chip8 {
                     self.program_counter += 2
                 }
             },
-            Chip8Commands::Load(_, _) => todo!(),
+            Chip8Commands::Load(x, value) => {self.registers[x as usize] = value},
             Chip8Commands::OR(_, _) => todo!(),
             Chip8Commands::AND(_, _) => todo!(),
             Chip8Commands::XOR(_, _) => todo!(),
@@ -656,5 +658,152 @@ mod test {
         emulator.execute_command(command);
 
         assert_eq!(emulator.program_counter, 0x202)
+    }
+
+    #[test]
+    fn test_load() {
+        let mut emulator = Chip8::new();
+        let command = Chip8Commands::Load(3, 69);
+
+        emulator.execute_command(command);
+
+        assert_eq!(emulator.registers[3], 69)
+    }
+
+    #[test]
+    fn test_load_register_to_register(){
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 0;
+        emulator.registers[5] = 70;
+        let command = Chip8Commands::Load(0, 5);
+        emulator.execute_command(command);
+
+        assert_eq!(emulator.registers[0], 70);
+    }
+
+    #[test]
+    fn test_bitwise_or() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 0b10101110;
+        emulator.registers[5] = 0b01010000;
+
+        emulator.execute_command(Chip8Commands::OR(0, 5));
+
+        assert_eq!(emulator.registers[0], 0xFE)
+    }    
+
+    #[test]
+    fn test_bitwise_and() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 0b10101111;
+        emulator.registers[5] = 0b01010001;
+
+        emulator.execute_command(Chip8Commands::AND(0, 5));
+        
+        assert_eq!(emulator.registers[0], 1)
+    }
+
+    #[test]
+    fn test_bitwise_xor() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 0b10101111;
+        emulator.registers[5] = 0b01010001;
+
+        emulator.execute_command(Chip8Commands::XOR(0, 5));
+
+        assert_eq!(emulator.registers[0], 0b11111110);
+    }
+
+    #[test]
+    fn test_add_registers() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 6;
+        emulator.registers[5] = 5;
+
+        emulator.execute_command(Chip8Commands::ADD(0, 5));
+
+        assert_eq!(emulator.registers[0], 11);
+    }
+
+    #[test]
+    fn test_add_registers_overflow() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 255;
+        emulator.registers[5] = 5;
+
+        emulator.execute_command(Chip8Commands::ADD(0, 5));
+
+        assert_eq!(emulator.registers[0], 4);
+        assert_eq!(emulator.registers[0xF], 1);
+    }
+
+    #[test]
+    fn test_sub_registers() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 6;
+        emulator.registers[5] = 5;
+
+        emulator.execute_command(Chip8Commands::SUB(0, 5));
+
+        assert_eq!(emulator.registers[0], 1);
+        assert_eq!(emulator.registers[0xF], 1);
+    }
+
+    #[test]
+    fn test_sub_registers_borrow() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 5;
+        emulator.registers[5] = 6;
+
+        emulator.execute_command(Chip8Commands::SUB(0, 5));
+
+        assert_eq!(emulator.registers[0], 255);
+        assert_eq!(emulator.registers[0xF], 0);
+    }
+
+    #[test]
+    fn test_shift_right_bit_1() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 0xFE;
+        emulator.execute_command(Chip8Commands::ShiftRight(0, 5));
+
+        assert_eq!(emulator.registers[0], 0x7F);
+        assert_eq!(emulator.registers[0xF], 0);
+    }
+
+    #[test]
+    fn test_shift_right_bit_0() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 0xFF;
+        emulator.registers[5] = 5;
+
+        emulator.execute_command(Chip8Commands::ShiftRight(0, 5));
+
+        assert_eq!(emulator.registers[0], 0x7F);
+        assert_eq!(emulator.registers[0xF], 1);
+    }
+
+    #[test]
+    fn test_shift_right_bit_1_vy_used() {
+        let mut emulator = Chip8::new();
+        emulator.use_old_bit_shift = true;
+        emulator.registers[5] = 0xFE;
+
+        emulator.execute_command(Chip8Commands::ShiftRight(0, 5));
+
+        assert_eq!(emulator.registers[0], 0x7F);
+        assert_eq!(emulator.registers[0xF], 0);
+    }
+
+    #[test]
+    fn test_shift_right_bit_0_vy_used() {
+        let mut emulator = Chip8::new();
+        emulator.use_old_bit_shift = true;
+        emulator.registers[5] = 0xFF;
+
+        emulator.execute_command(Chip8Commands::ShiftRight(0, 5));
+
+        assert_eq!(emulator.registers[0], 0x7F);
+        assert_eq!(emulator.registers[0xF], 1);
     }
 }
