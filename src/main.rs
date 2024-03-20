@@ -1,42 +1,41 @@
 mod chip8_commands;
+mod display;
 
-use std::{fs::File, io::{self, stdout, Read, Write}, thread, time::{self, Instant}, usize};
+use std::{fs::File, io::Read, thread, time};
 
 use chip8_commands::Chip8Commands;
-use crossterm::{
-    cursor,
-    style::{self, Stylize},
-    terminal, ExecutableCommand, QueueableCommand,
-};
+use display::{display::CrossTermDisplay, Display};
 
 struct Chip8 {
     memory: [u8; 4096],
-    display: [[bool; 32]; 64],
+    display_data: [[bool; 32]; 64],
     program_counter: u16,
     index_regiser: u16,
     stack: Vec<u16>,
     delay_timer: u8,
     sound_timer: u8,
     registers: [u8; 16],
-    stdout: io::Stdout,
     display_changed: bool,
-    use_old_bit_shift: bool
+    use_old_bit_shift: bool,
+    display: Box<dyn Display>
 }
 
 impl Chip8 {
     pub fn new() -> Chip8 {
+        let display = Box::new(CrossTermDisplay::new());
+
         let mut new_chip8 = Chip8 {
             memory: [0; 4096],
-            display: [[false; 32]; 64],
+            display_data: [[false; 32]; 64],
             program_counter: 0x200,
             index_regiser: 0,
             stack: Vec::new(),
             delay_timer: 0,
             sound_timer: 0,
             registers: [0; 16],
-            stdout: stdout(),
             display_changed: false,
-            use_old_bit_shift: false
+            use_old_bit_shift: false,
+            display
         };
 
         new_chip8.set_defaults();
@@ -45,8 +44,6 @@ impl Chip8 {
 
     fn set_defaults(&mut self) {
         self.set_fonts();
-        let _ = self.stdout.execute(cursor::Hide);
-        let _ = self.stdout.execute(terminal::Clear(terminal::ClearType::All));
     }
 
     pub fn load_program(&mut self, program: &[u8]) {
@@ -69,7 +66,7 @@ impl Chip8 {
             let decoded_command = Chip8Commands::new(command);
             self.execute_command(decoded_command);
             if self.display_changed {
-                self.draw_display().expect("Failed to draw display to console");
+                self.display.draw_display(&self.display_data).expect("Failed to draw display to console");
                 self.display_changed = false;
             }
             if let Some(i) = target_ft.checked_sub(now.elapsed()) {
@@ -106,7 +103,7 @@ impl Chip8 {
     fn execute_command(&mut self, command: Chip8Commands) {
         match command {
             Chip8Commands::ClearScreen => {
-                for row in self.display.iter_mut(){
+                for row in self.display_data.iter_mut(){
                     for pixel in row {
                         *pixel = false;
                     }
@@ -137,10 +134,10 @@ impl Chip8 {
                         let x_pos = x_start + i;
                         let y_pos = y_start + byte_offset as usize;
                         if x_pos < 64 && y_pos < 32 {
-                            if self.display[x_pos][y_pos] != bit {
+                            if self.display_data[x_pos][y_pos] != bit {
                                 self.registers[0xF] = 1;
                             }
-                            self.display[x_pos][y_pos] ^= bit;
+                            self.display_data[x_pos][y_pos] ^= bit;
                         }
                     }
                 }
@@ -227,22 +224,7 @@ impl Chip8 {
         }
     }
 
-    fn draw_display(&mut self) -> io::Result<()>{
-        for y in 0..32 {
-            for x in 0..64 {
-                if self.display[x][y] {
-                    self.stdout
-                        .queue(cursor::MoveTo(x.try_into().unwrap(), y.try_into().unwrap()))?
-                        .queue(style::PrintStyledContent("█".white()))?;
-                } else {
-                    self.stdout
-                        .queue(cursor::MoveTo(x.try_into().unwrap(), y.try_into().unwrap()))?
-                        .queue(style::PrintStyledContent("█".hidden()))?;
-                }
-            }
-        }
-        self.stdout.flush()
-    }
+    
 }
 
 
@@ -265,13 +247,13 @@ mod test {
         let mut emulator = Chip8::new();
         for x in 0..64 {
             for y in 0..32 {
-                emulator.display[x][y] = true;
+                emulator.display_data[x][y] = true;
             }
         }
 
         emulator.execute_command(Chip8Commands::ClearScreen);
 
-        for row in emulator.display {
+        for row in emulator.display_data {
             for pixel in row {
                 assert!(!pixel)
             }
@@ -343,9 +325,9 @@ mod test {
         for x in  0..64{
             for y in 0..32 {
                 if (3..11).contains(&x) && (2..6).contains(&y){
-                    assert!(emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
+                    assert!(emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
                 } else {
-                    assert!(!emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
+                    assert!(!emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
                 }
             }
         }
@@ -359,7 +341,7 @@ mod test {
         emulator.memory[0x202] = 0xFF;
         emulator.memory[0x203] = 0xFF;
         emulator.index_regiser = 0x200;
-        emulator.display[3][2] = true;
+        emulator.display_data[3][2] = true;
         emulator.registers[0] = 3;
         emulator.registers[1] = 2;
 
@@ -371,16 +353,17 @@ mod test {
             for y in 0..32 {
                 if (3..11).contains(&x) && (2..6).contains(&y){
                     if x == 3 && y == 2 {
-                        assert!(!emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
+                        assert!(!emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
                     } else {
-                        assert!(emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
+                        assert!(emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
                     }
                 } else {
-                    assert!(!emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
+                    assert!(!emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
                 }
             }
         }
-        assert_eq!(emulator.registers[0xF], 1)
+        assert_eq!(emulator.registers[0xF], 1);
+        assert!(emulator.display_changed);
     }
 
     #[test]
@@ -401,12 +384,13 @@ mod test {
         for x in 0..64 {
             for y in 0..32 {
                 if (2..10).contains(&x) && (1..5).contains(&y) {
-                    assert!(emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
+                    assert!(emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
                 } else {
-                    assert!(!emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
+                    assert!(!emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
                 }
             }
         }
+        assert!(emulator.display_changed);
     }
 
     #[test]
@@ -427,12 +411,13 @@ mod test {
         for x in 0..64 {
             for y in 0..32 {
                 if (62..64).contains(&x) && (30..32).contains(&y) {
-                    assert!(emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
+                    assert!(emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
                 } else {
-                    assert!(!emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
+                    assert!(!emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
                 }
             }
         }
+        assert!(emulator.display_changed);
     }
 
     #[test]
@@ -450,12 +435,13 @@ mod test {
         for x in 0..64 {
             for y in 0..32 {
                 if y == 0 && (0..4).contains(&x){
-                    assert!(emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
+                    assert!(emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
                 } else {
-                    assert!(!emulator.display[x][y], "pixel {}, {} not set correctly", x, y);
+                    assert!(!emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
                 }
             }
         }
+        assert!(emulator.display_changed);
     }
 
     #[test]
