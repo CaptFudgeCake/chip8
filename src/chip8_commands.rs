@@ -27,8 +27,8 @@ pub(crate) enum Chip8Commands {
 
 impl Chip8Commands {
     pub fn new(command: &[u8]) -> Chip8Commands {
-        let instruction_id = (command[0] & 0xF0) >> 4;
-        match instruction_id {
+        let opcode = (command[0] & 0xF0) >> 4;
+        match opcode {
             0 => match command {
                 [0x00, 0xE0] => Chip8Commands::ClearScreen,
                 [0x00, 0xEE] => Chip8Commands::Return,
@@ -36,7 +36,7 @@ impl Chip8Commands {
             },
             3 | 4 | 6 | 7 => {
                 let x = command[0] & 0xF;
-                match instruction_id {
+                match opcode {
                     3 => Chip8Commands::SkipEqualX(x.into(), command[1]),
                     4 => Chip8Commands::SkipNotEqualX(x.into(), command[1]),
                     6 => Chip8Commands::SetRegister(x.into(), command[1]),
@@ -47,8 +47,8 @@ impl Chip8Commands {
             8 => {
                 let x = command[0] & 0xF;
                 let y = (command[1] >> 4) & 0xF;
-                let nibble4 = command[1] & 0xF;
-                match nibble4 {
+                let identifier = command[1] & 0xF;
+                match identifier {
                     0x0 => Chip8Commands::Load(x.into(), y.into()),
                     0x1 => Chip8Commands::OR(x.into(), y.into()),
                     0x2 => Chip8Commands::AND(x.into(), y.into()),
@@ -71,7 +71,7 @@ impl Chip8Commands {
             }
             1 | 2 | 0xA => {
                 let address = ((command[0] as u16 & 0xF) << 8) | command[1] as u16;
-                match instruction_id {
+                match opcode {
                     1 => Chip8Commands::Jump(address),
                     2 => Chip8Commands::Call(address),
                     0xA => Chip8Commands::SetIndexRegister(address),
