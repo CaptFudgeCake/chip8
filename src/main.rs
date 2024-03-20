@@ -308,6 +308,7 @@ enum Chip8Commands {
     ClearScreen,                // 00E0
     Return,                     // 00EE
     Jump(u16),                  // 1NNN
+    Call(u16),
     SkipEqualX(u8, u8),         // 3XNN
     SkipNotEqualX(u8, u8),      // 4XNN	
     SkipEqualXY(u8, u8),        // 5XY0	
@@ -344,7 +345,7 @@ mod test {
     #[test]
     fn test_command_decode() {
         let emulator = Chip8::new();
-        let commands: [[u8; 2]; 21] = [
+        let commands: [[u8; 2]; 22] = [
             [0x00, 0xE0],
             [0x00, 0xEE],
             [0x11, 0x11],
@@ -365,7 +366,8 @@ mod test {
             [0x8F, 0x8E],
             [0x90, 0x90],
             [0xF3, 0x33],
-            [0xF6, 0x55]
+            [0xF6, 0x55],
+            [0x2A, 0x53]
         ];
         let expected = [
             Chip8Commands::ClearScreen,
@@ -388,7 +390,8 @@ mod test {
             Chip8Commands::ShiftLeft(0xF, 8),        
             Chip8Commands::SkipNotEqualXY(0x0, 9),   
             Chip8Commands::BinaryCodedDecimal(3),      
-            Chip8Commands::StoreRegisters(6),          
+            Chip8Commands::StoreRegisters(6),  
+            Chip8Commands::Call(0xA53)        
         ];
 
         for (i, command) in commands.into_iter().enumerate() {
@@ -978,5 +981,16 @@ mod test {
         assert_eq!(emulator.memory[0x206], 67);
         assert_eq!(emulator.memory[0x207], 88);
 
+    }
+
+    fn test_call_function(){
+        let mut emulator = Chip8::new();
+        emulator.program_counter = 0x200;
+        
+        emulator.execute_command(Chip8Commands::Call(0x543));
+
+        assert_eq!(emulator.stack.len(), 1);
+        assert_eq!(emulator.stack[0], 0x200);
+        assert_eq!(emulator.program_counter, 0x543);
     }
 }
