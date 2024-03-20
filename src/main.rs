@@ -212,6 +212,15 @@ impl Chip8 {
                     self.memory[self.index_regiser as usize + i] = self.registers[i];
                 }
             },
+            Chip8Commands::Call(address) => {
+                self.stack.push(self.program_counter);
+                self.program_counter = address;
+            },
+            Chip8Commands::SUBN(x, y) => {
+                let (value, overflow) = self.registers[y as usize].overflowing_sub(self.registers[x as usize]);
+                self.registers[x as usize] = value;
+                self.registers[0xF] = !overflow as u8;
+            },
         }
     }
 
@@ -245,6 +254,7 @@ impl Chip8 {
                     0x4 => Chip8Commands::ADD(x.into(), y.into()),
                     0x5 => Chip8Commands::SUB(x.into(), y.into()),
                     0x6 => Chip8Commands::ShiftRight(x.into(), y.into()),
+                    0x7 => Chip8Commands::SUBN(x.into(), y.into()),
                     0xE => Chip8Commands::ShiftLeft(x.into(), y.into()),
                     _ => panic!("Instruction {:x?} not found", command)
                 }
@@ -257,10 +267,11 @@ impl Chip8 {
                     _ => panic!("Instruction {:x?} not found", command)
                 }
             }
-            1 | 0xA => {
+            1 | 2 | 0xA => {
                 let address = ((command[0] as u16 & 0xF) << 8) | command[1] as u16;
                 match instruction_id {
                     1 => Chip8Commands::Jump(address),
+                    2 => Chip8Commands::Call(address),
                     0xA => Chip8Commands::SetIndexRegister(address),
                     _ => panic!("Instruction {:x?} not found", command)
                 }
@@ -308,7 +319,7 @@ enum Chip8Commands {
     ClearScreen,                // 00E0
     Return,                     // 00EE
     Jump(u16),                  // 1NNN
-    Call(u16),
+    Call(u16),                  // 2NNN
     SkipEqualX(u8, u8),         // 3XNN
     SkipNotEqualX(u8, u8),      // 4XNN	
     SkipEqualXY(u8, u8),        // 5XY0	
@@ -321,6 +332,7 @@ enum Chip8Commands {
     ADD(u8, u8),                // 8XY4	
     SUB(u8, u8),                // 8XY5
     ShiftRight(u8, u8),         // 8XY6
+    SUBN(u8, u8),               // 8XY7
     ShiftLeft(u8, u8),          // 8XYE
     SkipNotEqualXY(u8, u8),     // 9XY0	
     SetIndexRegister(u16),      // ANNN
@@ -345,7 +357,7 @@ mod test {
     #[test]
     fn test_command_decode() {
         let emulator = Chip8::new();
-        let commands: [[u8; 2]; 22] = [
+        let commands: [[u8; 2]; 23] = [
             [0x00, 0xE0],
             [0x00, 0xEE],
             [0x11, 0x11],
@@ -367,7 +379,8 @@ mod test {
             [0x90, 0x90],
             [0xF3, 0x33],
             [0xF6, 0x55],
-            [0x2A, 0x53]
+            [0x2A, 0x53],
+            [0x83, 0x67]
         ];
         let expected = [
             Chip8Commands::ClearScreen,
@@ -391,7 +404,8 @@ mod test {
             Chip8Commands::SkipNotEqualXY(0x0, 9),   
             Chip8Commands::BinaryCodedDecimal(3),      
             Chip8Commands::StoreRegisters(6),  
-            Chip8Commands::Call(0xA53)        
+            Chip8Commands::Call(0xA53),
+            Chip8Commands::SUBN(3, 6)
         ];
 
         for (i, command) in commands.into_iter().enumerate() {
@@ -803,6 +817,30 @@ mod test {
     }
 
     #[test]
+    fn test_sub_reverse_registers() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 5;
+        emulator.registers[5] = 6;
+
+        emulator.execute_command(Chip8Commands::SUBN(0, 5));
+
+        assert_eq!(emulator.registers[0], 1);
+        assert_eq!(emulator.registers[0xF], 1);
+    }
+
+    #[test]
+    fn test_sub_reverse_registers_borrow() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 6;
+        emulator.registers[5] = 5;
+
+        emulator.execute_command(Chip8Commands::SUBN(0, 5));
+
+        assert_eq!(emulator.registers[0], 255);
+        assert_eq!(emulator.registers[0xF], 0);
+    }
+
+    #[test]
     fn test_shift_right_bit_0() {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 0xFE;
@@ -983,6 +1021,7 @@ mod test {
 
     }
 
+    #[test]
     fn test_call_function(){
         let mut emulator = Chip8::new();
         emulator.program_counter = 0x200;
