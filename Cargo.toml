@@ -1,5 +1,5 @@
 [package]
-name = "advent-of-code"
+name = "chip8"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 crossterm = "0.27.0"
+ctrlc = "3.4.4"
