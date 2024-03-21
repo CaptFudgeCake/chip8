@@ -36,9 +36,9 @@ impl Display for CrossTermDisplay {
                 } else {
                     self.stdout
                         .queue(cursor::MoveTo(x0.try_into().unwrap(), y.try_into().unwrap()))?
-                        .queue(style::PrintStyledContent("█".hidden()))?
+                        .queue(style::PrintStyledContent("█".black()))?
                         .queue(cursor::MoveTo(x1.try_into().unwrap(), y.try_into().unwrap()))?
-                        .queue(style::PrintStyledContent("█".hidden()))?;
+                        .queue(style::PrintStyledContent("█".black()))?;
                 }
             }
         }
