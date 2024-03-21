@@ -1,6 +1,6 @@
 use std::io::{self, stdout, Stdout, Write};
 
-use crossterm::{cursor, style::{self, Stylize}, terminal, ExecutableCommand, QueueableCommand};
+use crossterm::{cursor, style::{self, Stylize}, terminal::{self, LeaveAlternateScreen}, ExecutableCommand, QueueableCommand};
 
 use super::Display;
 
@@ -12,6 +12,7 @@ pub(crate) struct CrossTermDisplay {
 impl CrossTermDisplay {
     pub(crate) fn new() -> CrossTermDisplay {
         let mut stdout = stdout();
+        let _ = stdout.execute(terminal::EnterAlternateScreen);
         let _ = stdout.execute(cursor::Hide);
         let _ = stdout.execute(terminal::Clear(terminal::ClearType::All));
         CrossTermDisplay {
@@ -42,5 +43,10 @@ impl Display for CrossTermDisplay {
             }
         }
         self.stdout.flush()
+    }
+
+    fn close_display(&mut self) {
+        let _ = self.stdout.execute(LeaveAlternateScreen);
+        let _ = self.stdout.execute(cursor::Show);
     }
 }
