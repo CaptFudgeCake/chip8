@@ -5,20 +5,20 @@ pub(crate) enum Chip8Commands {
     Jump(u16),                  // 1NNN
     Call(u16),                  // 2NNN
     SkipEqualX(u8, u8),         // 3XNN
-    SkipNotEqualX(u8, u8),      // 4XNN	
-    SkipEqualXY(u8, u8),        // 5XY0	
+    SkipNotEqualX(u8, u8),      // 4XNN
+    SkipEqualXY(u8, u8),        // 5XY0
     SetRegister(u8, u8),        // 6XNN
     AddValueToRegister(u8, u8), // 7XNN
-    Load(u8, u8),               // 8XY0	
-    OR(u8, u8),                 // 8XY1	
-    AND(u8, u8),                // 8XY2	
-    XOR(u8, u8),                // 8XY3	
-    ADD(u8, u8),                // 8XY4	
+    Load(u8, u8),               // 8XY0
+    OR(u8, u8),                 // 8XY1
+    AND(u8, u8),                // 8XY2
+    XOR(u8, u8),                // 8XY3
+    ADD(u8, u8),                // 8XY4
     SUB(u8, u8),                // 8XY5
     ShiftRight(u8, u8),         // 8XY6
     SUBN(u8, u8),               // 8XY7
     ShiftLeft(u8, u8),          // 8XYE
-    SkipNotEqualXY(u8, u8),     // 9XY0	
+    SkipNotEqualXY(u8, u8),     // 9XY0
     SetIndexRegister(u16),      // ANNN
     Draw(u8, u8, u8),           // DXYN
     BinaryCodedDecimal(u8),     // FX33
@@ -58,7 +58,7 @@ impl Chip8Commands {
                     0x6 => Chip8Commands::ShiftRight(x.into(), y.into()),
                     0x7 => Chip8Commands::SUBN(x.into(), y.into()),
                     0xE => Chip8Commands::ShiftLeft(x.into(), y.into()),
-                    _ => panic!("Instruction {:x?} not found", command)
+                    _ => panic!("Instruction {:x?} not found", command),
                 }
             }
             0xF => {
@@ -66,7 +66,7 @@ impl Chip8Commands {
                 match command[1] {
                     0x33 => Chip8Commands::BinaryCodedDecimal(x.into()),
                     0x55 => Chip8Commands::StoreRegisters(x.into()),
-                    _ => panic!("Instruction {:x?} not found", command)
+                    _ => panic!("Instruction {:x?} not found", command),
                 }
             }
             1 | 2 | 0xA => {
@@ -75,7 +75,7 @@ impl Chip8Commands {
                     1 => Chip8Commands::Jump(address),
                     2 => Chip8Commands::Call(address),
                     0xA => Chip8Commands::SetIndexRegister(address),
-                    _ => panic!("Instruction {:x?} not found", command)
+                    _ => panic!("Instruction {:x?} not found", command),
                 }
             }
             5 => {
@@ -128,7 +128,7 @@ mod test {
             [0xF3, 0x33],
             [0xF6, 0x55],
             [0x2A, 0x53],
-            [0x83, 0x67]
+            [0x83, 0x67],
         ];
         let expected = [
             Chip8Commands::ClearScreen,
@@ -138,22 +138,22 @@ mod test {
             Chip8Commands::AddValueToRegister(5, 0x53),
             Chip8Commands::SetIndexRegister(0xDFF),
             Chip8Commands::Draw(3, 2, 8),
-            Chip8Commands::SkipEqualX(0, 5),          
-            Chip8Commands::SkipNotEqualX(1, 0x45),       
-            Chip8Commands::SkipEqualXY(0xA, 0xD),      
-            Chip8Commands::Load(7, 0xA),             
-            Chip8Commands::OR(9, 2),               
-            Chip8Commands::AND(0xA, 3),              
-            Chip8Commands::XOR(0xB, 4),              
-            Chip8Commands::ADD(0xC, 5),              
-            Chip8Commands::SUB(0xD, 6),              
-            Chip8Commands::ShiftRight(0xE, 7),       
-            Chip8Commands::ShiftLeft(0xF, 8),        
-            Chip8Commands::SkipNotEqualXY(0x0, 9),   
-            Chip8Commands::BinaryCodedDecimal(3),      
-            Chip8Commands::StoreRegisters(6),  
+            Chip8Commands::SkipEqualX(0, 5),
+            Chip8Commands::SkipNotEqualX(1, 0x45),
+            Chip8Commands::SkipEqualXY(0xA, 0xD),
+            Chip8Commands::Load(7, 0xA),
+            Chip8Commands::OR(9, 2),
+            Chip8Commands::AND(0xA, 3),
+            Chip8Commands::XOR(0xB, 4),
+            Chip8Commands::ADD(0xC, 5),
+            Chip8Commands::SUB(0xD, 6),
+            Chip8Commands::ShiftRight(0xE, 7),
+            Chip8Commands::ShiftLeft(0xF, 8),
+            Chip8Commands::SkipNotEqualXY(0x0, 9),
+            Chip8Commands::BinaryCodedDecimal(3),
+            Chip8Commands::StoreRegisters(6),
             Chip8Commands::Call(0xA53),
-            Chip8Commands::SUBN(3, 6)
+            Chip8Commands::SUBN(3, 6),
         ];
 
         for (i, command) in commands.into_iter().enumerate() {

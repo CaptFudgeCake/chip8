@@ -1,12 +1,16 @@
 use std::io::{self, stdout, Stdout, Write};
 
-use crossterm::{cursor, style::{self, Stylize}, terminal::{self, LeaveAlternateScreen}, ExecutableCommand, QueueableCommand};
+use crossterm::{
+    cursor,
+    style::{self, Stylize},
+    terminal::{self, LeaveAlternateScreen},
+    ExecutableCommand, QueueableCommand,
+};
 
 use super::Display;
 
-
 pub(crate) struct CrossTermDisplay {
-    stdout: Stdout
+    stdout: Stdout,
 }
 
 impl CrossTermDisplay {
@@ -15,9 +19,7 @@ impl CrossTermDisplay {
         let _ = stdout.execute(terminal::EnterAlternateScreen);
         let _ = stdout.execute(cursor::Hide);
         let _ = stdout.execute(terminal::Clear(terminal::ClearType::All));
-        CrossTermDisplay {
-            stdout
-        }
+        CrossTermDisplay { stdout }
     }
 }
 
@@ -29,15 +31,27 @@ impl Display for CrossTermDisplay {
                 let x1 = x0 + 1;
                 if display_data[x][y] {
                     self.stdout
-                        .queue(cursor::MoveTo(x0.try_into().unwrap(), y.try_into().unwrap()))?
+                        .queue(cursor::MoveTo(
+                            x0.try_into().unwrap(),
+                            y.try_into().unwrap(),
+                        ))?
                         .queue(style::PrintStyledContent("█".white()))?
-                        .queue(cursor::MoveTo(x1.try_into().unwrap(), y.try_into().unwrap()))?
+                        .queue(cursor::MoveTo(
+                            x1.try_into().unwrap(),
+                            y.try_into().unwrap(),
+                        ))?
                         .queue(style::PrintStyledContent("█".white()))?;
                 } else {
                     self.stdout
-                        .queue(cursor::MoveTo(x0.try_into().unwrap(), y.try_into().unwrap()))?
+                        .queue(cursor::MoveTo(
+                            x0.try_into().unwrap(),
+                            y.try_into().unwrap(),
+                        ))?
                         .queue(style::PrintStyledContent("█".black()))?
-                        .queue(cursor::MoveTo(x1.try_into().unwrap(), y.try_into().unwrap()))?
+                        .queue(cursor::MoveTo(
+                            x1.try_into().unwrap(),
+                            y.try_into().unwrap(),
+                        ))?
                         .queue(style::PrintStyledContent("█".black()))?;
                 }
             }

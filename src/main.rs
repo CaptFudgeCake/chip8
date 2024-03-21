@@ -1,7 +1,15 @@
 mod chip8_commands;
 mod display;
 
-use std::{fs::File, io::Read, sync::{atomic::{AtomicBool, Ordering}, Arc}, thread, time};
+use std::{
+    fs::File,
+    io::Read,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    thread, time,
+};
 
 use chip8_commands::Chip8Commands;
 use display::{display::CrossTermDisplay, Display};
@@ -17,7 +25,7 @@ struct Chip8 {
     registers: [u8; 16],
     display_changed: bool,
     use_old_bit_shift: bool,
-    display: Box<dyn Display>
+    display: Box<dyn Display>,
 }
 
 impl Chip8 {
@@ -35,7 +43,7 @@ impl Chip8 {
             registers: [0; 16],
             display_changed: false,
             use_old_bit_shift: false,
-            display
+            display,
         };
 
         new_chip8.set_defaults();
@@ -48,7 +56,9 @@ impl Chip8 {
 
     pub fn load_program(&mut self, program: &[u8]) {
         let mut address = 0x200;
-        if (address + program.len()) > 4096 {panic!("Program too long to fit in ram, solution not implemented")}
+        if (address + program.len()) > 4096 {
+            panic!("Program too long to fit in ram, solution not implemented")
+        }
 
         for byte in program {
             self.memory[address] = *byte;
@@ -56,22 +66,26 @@ impl Chip8 {
         }
     }
 
-    pub fn start(&mut self){
+    pub fn start(&mut self) {
         let target_ft = time::Duration::from_secs(1) / 700;
         // let start = time::Instant::now();
         let close_signal = Arc::new(AtomicBool::new(false));
         let close_signal_in_closure = close_signal.clone();
         ctrlc::set_handler(move || {
             close_signal_in_closure.store(true, Ordering::SeqCst);
-        }).expect("Test");
+        })
+        .expect("Test");
         while !close_signal.load(Ordering::SeqCst) {
             let now = time::Instant::now();
-            let command = &self.memory[(self.program_counter as usize)..(self.program_counter as usize +2)];
+            let command =
+                &self.memory[(self.program_counter as usize)..(self.program_counter as usize + 2)];
             self.program_counter += 2;
             let decoded_command = Chip8Commands::new(command);
             self.execute_command(decoded_command);
             if self.display_changed {
-                self.display.draw_display(&self.display_data).expect("Failed to draw display to console");
+                self.display
+                    .draw_display(&self.display_data)
+                    .expect("Failed to draw display to console");
                 self.display_changed = false;
             }
             if let Some(i) = target_ft.checked_sub(now.elapsed()) {
@@ -109,34 +123,35 @@ impl Chip8 {
     fn execute_command(&mut self, command: Chip8Commands) {
         match command {
             Chip8Commands::ClearScreen => {
-                for row in self.display_data.iter_mut(){
+                for row in self.display_data.iter_mut() {
                     for pixel in row {
                         *pixel = false;
                     }
                 }
-            },
+            }
             Chip8Commands::Return => {
                 self.program_counter = self.stack.pop().expect("No value on stack to return to");
-            },
+            }
             Chip8Commands::Jump(address) => {
                 self.program_counter = address;
-            },
+            }
             Chip8Commands::SetRegister(register, value) => {
                 self.registers[register as usize] = value;
-            },
+            }
             Chip8Commands::AddValueToRegister(register, value) => {
-                (self.registers[register as usize], _) = self.registers[register as usize].overflowing_add(value);
-            },
+                (self.registers[register as usize], _) =
+                    self.registers[register as usize].overflowing_add(value);
+            }
             Chip8Commands::SetIndexRegister(value) => {
                 self.index_regiser = value;
-            },
+            }
             Chip8Commands::Draw(x, y, bytes) => {
                 let x_start = (self.registers[x as usize] as usize) % 64;
                 let y_start = (self.registers[y as usize] as usize) % 32;
                 for byte_offset in 0..bytes {
                     let byte = self.memory[self.index_regiser as usize + byte_offset as usize];
                     for i in 0..8 {
-                        let bit = ((byte >> 7-i) & 0b1) != 0;
+                        let bit = ((byte >> 7 - i) & 0b1) != 0;
                         let x_pos = x_start + i;
                         let y_pos = y_start + byte_offset as usize;
                         if x_pos < 64 && y_pos < 32 {
@@ -149,95 +164,98 @@ impl Chip8 {
                 }
 
                 self.display_changed = true;
-            },
+            }
             Chip8Commands::SkipEqualX(x, value) => {
                 if self.registers[x as usize] == value {
                     self.program_counter += 2
                 }
-            },
+            }
             Chip8Commands::SkipNotEqualX(x, value) => {
                 if self.registers[x as usize] != value {
                     self.program_counter += 2
                 }
-            },
+            }
             Chip8Commands::SkipEqualXY(x, y) => {
                 if self.registers[x as usize] == self.registers[y as usize] {
                     self.program_counter += 2
                 }
-            },
-            Chip8Commands::Load(x, y) => {self.registers[x as usize] = self.registers[y as usize]},
+            }
+            Chip8Commands::Load(x, y) => self.registers[x as usize] = self.registers[y as usize],
             Chip8Commands::OR(x, y) => {
                 self.registers[x as usize] |= self.registers[y as usize];
-            },
+            }
             Chip8Commands::AND(x, y) => {
                 self.registers[x as usize] &= self.registers[y as usize];
-            },
+            }
             Chip8Commands::XOR(x, y) => {
                 self.registers[x as usize] ^= self.registers[y as usize];
-            },
+            }
             Chip8Commands::ADD(x, y) => {
-                let (value, overflow) = self.registers[x as usize].overflowing_add(self.registers[y as usize]);
+                let (value, overflow) =
+                    self.registers[x as usize].overflowing_add(self.registers[y as usize]);
                 self.registers[x as usize] = value;
                 self.registers[0xF] = overflow as u8;
-            },
+            }
             Chip8Commands::SUB(x, y) => {
-                let (value, overflow) = self.registers[x as usize].overflowing_sub(self.registers[y as usize]);
+                let (value, overflow) =
+                    self.registers[x as usize].overflowing_sub(self.registers[y as usize]);
                 self.registers[x as usize] = value;
                 self.registers[0xF] = !overflow as u8;
-            },
+            }
             Chip8Commands::ShiftRight(x, y) => {
-                if self.use_old_bit_shift{
+                if self.use_old_bit_shift {
                     self.registers[x as usize] = self.registers[y as usize] >> 1;
                     self.registers[0xF] = self.registers[y as usize] & 0b1;
                 } else {
                     self.registers[0xF] = self.registers[x as usize] & 0b1;
                     self.registers[x as usize] = self.registers[x as usize] >> 1;
                 }
-            },
+            }
             Chip8Commands::ShiftLeft(x, y) => {
-                if self.use_old_bit_shift{
+                if self.use_old_bit_shift {
                     self.registers[x as usize] = self.registers[y as usize] << 1;
                     self.registers[0xF] = (self.registers[y as usize] & 0x80) >> 7;
                 } else {
                     self.registers[0xF] = (self.registers[x as usize] & 0x80) >> 7;
                     self.registers[x as usize] = self.registers[x as usize] << 1;
                 }
-            },
+            }
             Chip8Commands::SkipNotEqualXY(x, y) => {
                 if self.registers[x as usize] != self.registers[y as usize] {
                     self.program_counter += 2
                 }
-            },
+            }
             Chip8Commands::BinaryCodedDecimal(x) => {
                 self.memory[self.index_regiser as usize] = self.registers[x as usize] / 100;
-                self.memory[self.index_regiser as usize+1] = self.registers[x as usize] % 100 / 10;
-                self.memory[self.index_regiser as usize+2] = self.registers[x as usize] % 100 % 10;
-            },
+                self.memory[self.index_regiser as usize + 1] =
+                    self.registers[x as usize] % 100 / 10;
+                self.memory[self.index_regiser as usize + 2] =
+                    self.registers[x as usize] % 100 % 10;
+            }
             Chip8Commands::StoreRegisters(x) => {
                 for i in 0..=(x as usize) {
                     self.memory[self.index_regiser as usize + i] = self.registers[i];
                 }
-            },
+            }
             Chip8Commands::Call(address) => {
                 self.stack.push(self.program_counter);
                 self.program_counter = address;
-            },
+            }
             Chip8Commands::SUBN(x, y) => {
-                let (value, overflow) = self.registers[y as usize].overflowing_sub(self.registers[x as usize]);
+                let (value, overflow) =
+                    self.registers[y as usize].overflowing_sub(self.registers[x as usize]);
                 self.registers[x as usize] = value;
                 self.registers[0xF] = !overflow as u8;
-            },
+            }
         }
     }
-
-    
 }
-
 
 fn main() {
     let mut program: Vec<u8> = Vec::new();
-    let mut file = File::open("roms/IBM Logo.ch8").unwrap(); 
-    file.read_to_end(&mut program).expect("Failed to read program");
+    let mut file = File::open("roms/test_opcode.ch8").unwrap();
+    file.read_to_end(&mut program)
+        .expect("Failed to read program");
     let mut emulator = Chip8::new();
     emulator.load_program(&program);
     emulator.start();
@@ -247,7 +265,7 @@ fn main() {
 mod test {
     use self::chip8_commands::Chip8Commands;
     use super::*;
-    
+
     #[test]
     fn test_clear_screen() {
         let mut emulator = Chip8::new();
@@ -267,7 +285,7 @@ mod test {
     }
 
     #[test]
-    fn test_jump(){
+    fn test_jump() {
         let mut emulator = Chip8::new();
 
         emulator.execute_command(Chip8Commands::Jump(0x22A));
@@ -276,7 +294,7 @@ mod test {
     }
 
     #[test]
-    fn test_add_to_register(){
+    fn test_add_to_register() {
         let mut emulator = Chip8::new();
 
         emulator.execute_command(Chip8Commands::AddValueToRegister(2, 6));
@@ -284,9 +302,9 @@ mod test {
 
         assert_eq!(emulator.registers[2], 15);
     }
-    
+
     #[test]
-    fn test_add_to_register_overflow_shouldnt_fail(){
+    fn test_add_to_register_overflow_shouldnt_fail() {
         let mut emulator = Chip8::new();
 
         emulator.execute_command(Chip8Commands::AddValueToRegister(2, 129));
@@ -296,7 +314,7 @@ mod test {
     }
 
     #[test]
-    fn test_set_index_register(){
+    fn test_set_index_register() {
         let mut emulator = Chip8::new();
 
         emulator.execute_command(Chip8Commands::SetIndexRegister(0xFFF));
@@ -305,7 +323,7 @@ mod test {
     }
 
     #[test]
-    fn test_set_register(){
+    fn test_set_register() {
         let mut emulator = Chip8::new();
 
         emulator.execute_command(Chip8Commands::SetRegister(2, 69));
@@ -327,20 +345,28 @@ mod test {
         let command = Chip8Commands::Draw(0, 1, 4);
 
         emulator.execute_command(command);
-        
-        for x in  0..64{
+
+        for x in 0..64 {
             for y in 0..32 {
-                if (3..11).contains(&x) && (2..6).contains(&y){
-                    assert!(emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
+                if (3..11).contains(&x) && (2..6).contains(&y) {
+                    assert!(
+                        emulator.display_data[x][y],
+                        "pixel {}, {} not set correctly",
+                        x, y
+                    );
                 } else {
-                    assert!(!emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
+                    assert!(
+                        !emulator.display_data[x][y],
+                        "pixel {}, {} not set correctly",
+                        x, y
+                    );
                 }
             }
         }
     }
 
     #[test]
-    fn test_draw_ovewrite(){
+    fn test_draw_ovewrite() {
         let mut emulator = Chip8::new();
         emulator.memory[0x200] = 0xFF;
         emulator.memory[0x201] = 0xFF;
@@ -354,17 +380,29 @@ mod test {
         let command = Chip8Commands::Draw(0, 1, 4);
 
         emulator.execute_command(command);
-        
-        for x in  0..64{
+
+        for x in 0..64 {
             for y in 0..32 {
-                if (3..11).contains(&x) && (2..6).contains(&y){
+                if (3..11).contains(&x) && (2..6).contains(&y) {
                     if x == 3 && y == 2 {
-                        assert!(!emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
+                        assert!(
+                            !emulator.display_data[x][y],
+                            "pixel {}, {} not set correctly",
+                            x, y
+                        );
                     } else {
-                        assert!(emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
+                        assert!(
+                            emulator.display_data[x][y],
+                            "pixel {}, {} not set correctly",
+                            x, y
+                        );
                     }
                 } else {
-                    assert!(!emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
+                    assert!(
+                        !emulator.display_data[x][y],
+                        "pixel {}, {} not set correctly",
+                        x, y
+                    );
                 }
             }
         }
@@ -373,7 +411,7 @@ mod test {
     }
 
     #[test]
-    fn test_sprite_position_does_wrap(){
+    fn test_sprite_position_does_wrap() {
         let mut emulator = Chip8::new();
         emulator.memory[0x200] = 0xFF;
         emulator.memory[0x201] = 0xFF;
@@ -386,13 +424,21 @@ mod test {
         let command = Chip8Commands::Draw(0, 1, 4);
 
         emulator.execute_command(command);
-        
+
         for x in 0..64 {
             for y in 0..32 {
                 if (2..10).contains(&x) && (1..5).contains(&y) {
-                    assert!(emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
+                    assert!(
+                        emulator.display_data[x][y],
+                        "pixel {}, {} not set correctly",
+                        x, y
+                    );
                 } else {
-                    assert!(!emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
+                    assert!(
+                        !emulator.display_data[x][y],
+                        "pixel {}, {} not set correctly",
+                        x, y
+                    );
                 }
             }
         }
@@ -400,7 +446,7 @@ mod test {
     }
 
     #[test]
-    fn test_draw_sprite_does_not_wrap(){
+    fn test_draw_sprite_does_not_wrap() {
         let mut emulator = Chip8::new();
         emulator.memory[0x200] = 0xFF;
         emulator.memory[0x201] = 0xFF;
@@ -413,13 +459,21 @@ mod test {
         let command = Chip8Commands::Draw(0, 1, 4);
 
         emulator.execute_command(command);
-        
+
         for x in 0..64 {
             for y in 0..32 {
                 if (62..64).contains(&x) && (30..32).contains(&y) {
-                    assert!(emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
+                    assert!(
+                        emulator.display_data[x][y],
+                        "pixel {}, {} not set correctly",
+                        x, y
+                    );
                 } else {
-                    assert!(!emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
+                    assert!(
+                        !emulator.display_data[x][y],
+                        "pixel {}, {} not set correctly",
+                        x, y
+                    );
                 }
             }
         }
@@ -437,13 +491,21 @@ mod test {
         let command = Chip8Commands::Draw(0, 1, 1);
 
         emulator.execute_command(command);
-        
+
         for x in 0..64 {
             for y in 0..32 {
-                if y == 0 && (0..4).contains(&x){
-                    assert!(emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
+                if y == 0 && (0..4).contains(&x) {
+                    assert!(
+                        emulator.display_data[x][y],
+                        "pixel {}, {} not set correctly",
+                        x, y
+                    );
                 } else {
-                    assert!(!emulator.display_data[x][y], "pixel {}, {} not set correctly", x, y);
+                    assert!(
+                        !emulator.display_data[x][y],
+                        "pixel {}, {} not set correctly",
+                        x, y
+                    );
                 }
             }
         }
@@ -462,7 +524,7 @@ mod test {
     }
 
     #[test]
-    fn test_skip_equal_to_register(){
+    fn test_skip_equal_to_register() {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 6;
         emulator.program_counter = 0x200;
@@ -474,7 +536,7 @@ mod test {
     }
 
     #[test]
-    fn test_skip_equal_to_register_not_equal(){
+    fn test_skip_equal_to_register_not_equal() {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 7;
         emulator.program_counter = 0x200;
@@ -486,7 +548,7 @@ mod test {
     }
 
     #[test]
-    fn test_not_skip_equal_to_register(){
+    fn test_not_skip_equal_to_register() {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 6;
         emulator.program_counter = 0x200;
@@ -498,7 +560,7 @@ mod test {
     }
 
     #[test]
-    fn test_skip_not_equal_to_register_equal(){
+    fn test_skip_not_equal_to_register_equal() {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 7;
         emulator.program_counter = 0x200;
@@ -510,7 +572,7 @@ mod test {
     }
 
     #[test]
-    fn test_not_equal_to_registers(){
+    fn test_not_equal_to_registers() {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 6;
         emulator.registers[1] = 6;
@@ -523,7 +585,7 @@ mod test {
     }
 
     #[test]
-    fn test_skip_equal_to_registers_not_equal(){
+    fn test_skip_equal_to_registers_not_equal() {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 7;
         emulator.registers[1] = 6;
@@ -536,7 +598,7 @@ mod test {
     }
 
     #[test]
-    fn test_not_not_equal_to_registers(){
+    fn test_not_not_equal_to_registers() {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 6;
         emulator.registers[1] = 6;
@@ -549,7 +611,7 @@ mod test {
     }
 
     #[test]
-    fn test_skip_not_equal_to_registers_equal(){
+    fn test_skip_not_equal_to_registers_equal() {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 7;
         emulator.registers[1] = 6;
@@ -562,7 +624,7 @@ mod test {
     }
 
     #[test]
-    fn test_load_register_to_register(){
+    fn test_load_register_to_register() {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 0;
         emulator.registers[5] = 70;
@@ -581,7 +643,7 @@ mod test {
         emulator.execute_command(Chip8Commands::OR(0, 5));
 
         assert_eq!(emulator.registers[0], 0xFE)
-    }    
+    }
 
     #[test]
     fn test_bitwise_and() {
@@ -590,7 +652,7 @@ mod test {
         emulator.registers[5] = 0b01010001;
 
         emulator.execute_command(Chip8Commands::AND(0, 5));
-        
+
         assert_eq!(emulator.registers[0], 1)
     }
 
@@ -793,7 +855,6 @@ mod test {
 
     #[test]
     fn test_binary_coded_decimal_u() {
-        
         let mut emulator = Chip8::new();
         emulator.index_regiser = 0x200;
         emulator.registers[0] = 5;
@@ -832,7 +893,7 @@ mod test {
     }
 
     #[test]
-    fn test_store_registers_in_memory(){
+    fn test_store_registers_in_memory() {
         let mut emulator = Chip8::new();
         emulator.index_regiser = 0x200;
         emulator.registers[0] = 30;
@@ -854,14 +915,13 @@ mod test {
         assert_eq!(emulator.memory[0x205], 34);
         assert_eq!(emulator.memory[0x206], 67);
         assert_eq!(emulator.memory[0x207], 88);
-
     }
 
     #[test]
-    fn test_call_function(){
+    fn test_call_function() {
         let mut emulator = Chip8::new();
         emulator.program_counter = 0x200;
-        
+
         emulator.execute_command(Chip8Commands::Call(0x543));
 
         assert_eq!(emulator.stack.len(), 1);
