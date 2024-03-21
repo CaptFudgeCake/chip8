@@ -1,7 +1,7 @@
 mod chip8_commands;
 mod display;
 
-use std::{fs::File, io::Read, thread, time};
+use std::{fs::File, io::Read, sync::{atomic::{AtomicBool, Ordering}, Arc}, thread, time};
 
 use chip8_commands::Chip8Commands;
 use display::{display::CrossTermDisplay, Display};
@@ -59,7 +59,12 @@ impl Chip8 {
     pub fn start(&mut self){
         let target_ft = time::Duration::from_secs(1) / 700;
         // let start = time::Instant::now();
-        loop {
+        let close_signal = Arc::new(AtomicBool::new(false));
+        let close_signal_in_closure = close_signal.clone();
+        ctrlc::set_handler(move || {
+            close_signal_in_closure.store(true, Ordering::SeqCst);
+        }).expect("Test");
+        while !close_signal.load(Ordering::SeqCst) {
             let now = time::Instant::now();
             let command = &self.memory[(self.program_counter as usize)..(self.program_counter as usize +2)];
             self.program_counter += 2;
@@ -73,6 +78,7 @@ impl Chip8 {
                 thread::sleep(i);
             }
         }
+        self.display.close_display();
     }
 
     fn set_fonts(&mut self) {
@@ -230,7 +236,7 @@ impl Chip8 {
 
 fn main() {
     let mut program: Vec<u8> = Vec::new();
-    let mut file = File::open("test_opcode.ch8").unwrap(); 
+    let mut file = File::open("roms/IBM Logo.ch8").unwrap(); 
     file.read_to_end(&mut program).expect("Failed to read program");
     let mut emulator = Chip8::new();
     emulator.load_program(&program);
