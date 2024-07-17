@@ -247,6 +247,11 @@ impl Chip8 {
                 self.registers[x as usize] = value;
                 self.registers[0xF] = !overflow as u8;
             }
+            Chip8Commands::LoadRegisters(x) => {
+                for i in 0..=(x as usize) {
+                    self.registers[i] = self.memory[self.index_regiser as usize + i];
+                }
+            }
         }
     }
 }
@@ -915,6 +920,28 @@ mod test {
         assert_eq!(emulator.memory[0x205], 34);
         assert_eq!(emulator.memory[0x206], 67);
         assert_eq!(emulator.memory[0x207], 88);
+    }
+
+    #[test]
+    fn test_load_register_to_memory() {
+        let mut emulator = Chip8::new();
+        emulator.index_regiser = 0x200;
+
+        emulator.memory[0x200] = 69;
+        emulator.memory[0x201] = 70;
+        emulator.memory[0x202] = 71;
+        emulator.memory[0x203] = 72;
+        emulator.memory[0x204] = 73;
+        emulator.memory[0x205] = 74;
+
+        emulator.execute_command(Chip8Commands::LoadRegisters(5));
+
+        assert_eq!(emulator.registers[0], 69);
+        assert_eq!(emulator.registers[1], 70);
+        assert_eq!(emulator.registers[2], 71);
+        assert_eq!(emulator.registers[3], 72);
+        assert_eq!(emulator.registers[4], 73);
+        assert_eq!(emulator.registers[5], 74);
     }
 
     #[test]
