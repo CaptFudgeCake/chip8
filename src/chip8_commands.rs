@@ -23,6 +23,7 @@ pub(crate) enum Chip8Commands {
     Draw(u8, u8, u8),           // DXYN
     BinaryCodedDecimal(u8),     // FX33
     StoreRegisters(u8),         // FX55
+    ReadIntoRegisters(u8),      // FX65
 }
 
 impl Chip8Commands {
@@ -66,6 +67,7 @@ impl Chip8Commands {
                 match command[1] {
                     0x33 => Chip8Commands::BinaryCodedDecimal(x.into()),
                     0x55 => Chip8Commands::StoreRegisters(x.into()),
+                    0x65 => Chip8Commands::ReadIntoRegisters(x.into()),
                     _ => panic!("Instruction {:x?} not found", command),
                 }
             }
@@ -105,7 +107,7 @@ mod test {
 
     #[test]
     fn test_command_decode() {
-        let commands: [[u8; 2]; 23] = [
+        let commands: [[u8; 2]; 24] = [
             [0x00, 0xE0],
             [0x00, 0xEE],
             [0x11, 0x11],
@@ -129,6 +131,7 @@ mod test {
             [0xF6, 0x55],
             [0x2A, 0x53],
             [0x83, 0x67],
+            [0xF1, 0x65],
         ];
         let expected = [
             Chip8Commands::ClearScreen,
@@ -154,6 +157,7 @@ mod test {
             Chip8Commands::StoreRegisters(6),
             Chip8Commands::Call(0xA53),
             Chip8Commands::SUBN(3, 6),
+            Chip8Commands::ReadIntoRegisters(1),
         ];
 
         for (i, command) in commands.into_iter().enumerate() {

@@ -247,13 +247,19 @@ impl Chip8 {
                 self.registers[x as usize] = value;
                 self.registers[0xF] = !overflow as u8;
             }
+            Chip8Commands::ReadIntoRegisters(x) => {
+                for i in 0..=(x as usize) {
+                    self.registers[i] = self.memory[self.index_regiser as usize + i];
+                }
+            }
+            default => unimplemented!("{:?} instruction not implemented", default),
         }
     }
 }
 
 fn main() {
     let mut program: Vec<u8> = Vec::new();
-    let mut file = File::open("roms/test_opcode.ch8").unwrap();
+    let mut file = File::open("roms/3-corax+.ch8").unwrap();
     file.read_to_end(&mut program)
         .expect("Failed to read program");
     let mut emulator = Chip8::new();
@@ -915,6 +921,22 @@ mod test {
         assert_eq!(emulator.memory[0x205], 34);
         assert_eq!(emulator.memory[0x206], 67);
         assert_eq!(emulator.memory[0x207], 88);
+    }
+
+    #[test]
+    fn test_command_read_into_registers() {
+        let mut emulator = Chip8::new();
+        emulator.index_regiser = 0x200;
+        emulator.registers[0] = 0;
+        emulator.registers[1] = 0;
+
+        emulator.memory[0x200] = 20;
+        emulator.memory[0x201] = 21;
+
+        emulator.execute_command(Chip8Commands::ReadIntoRegisters(1));
+
+        assert_eq!(emulator.registers[0], 20);
+        assert_eq!(emulator.registers[1], 21);
     }
 
     #[test]
