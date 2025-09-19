@@ -1,5 +1,5 @@
-use crate::Chip8;
 use crate::commands::command::Command;
+use crate::Chip8;
 
 pub struct SetRegister {
     register: u8,
@@ -8,7 +8,7 @@ pub struct SetRegister {
 
 impl SetRegister {
     pub fn new(register: u8, value: u8) -> Self {
-        Self {register, value}
+        Self { register, value }
     }
 }
 

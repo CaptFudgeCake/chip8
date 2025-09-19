@@ -1,5 +1,5 @@
-use crate::Chip8;
 use crate::commands::command::Command;
+use crate::Chip8;
 
 pub struct Draw {
     register_x: u8,
@@ -8,8 +8,12 @@ pub struct Draw {
 }
 
 impl Draw {
-    pub fn new(register_x: u8, register_y: u8, bytes: u8,) -> Self {
-        Self {register_x,register_y,bytes,}
+    pub fn new(register_x: u8, register_y: u8, bytes: u8) -> Self {
+        Self {
+            register_x,
+            register_y,
+            bytes,
+        }
     }
 }
 

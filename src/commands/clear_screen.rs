@@ -1,5 +1,5 @@
-use crate::Chip8;
 use super::command::Command;
+use crate::Chip8;
 
 pub struct ClearScreen {}
 

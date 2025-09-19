@@ -1,5 +1,5 @@
-use crate::Chip8;
 use crate::commands::command::Command;
+use crate::Chip8;
 
 pub struct And {
     register_x: u8,
@@ -17,6 +17,7 @@ impl And {
 
 impl Command for And {
     fn execute(&self, emulator: &mut Chip8) {
-        emulator.registers[self.register_x as usize] &= emulator.registers[self.register_y as usize];
+        emulator.registers[self.register_x as usize] &=
+            emulator.registers[self.register_y as usize];
     }
 }

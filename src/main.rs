@@ -1,6 +1,6 @@
 mod chip8_commands;
-mod display;
 mod commands;
+mod display;
 
 use std::{
     fs::File,
@@ -12,9 +12,9 @@ use std::{
     thread, time,
 };
 
+use crate::commands::command_parser::parse_command;
 use chip8_commands::Chip8Commands;
 use display::{display::CrossTermDisplay, Display};
-use crate::commands::command_parser::parse_command;
 
 struct Chip8 {
     memory: [u8; 4096],

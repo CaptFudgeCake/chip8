@@ -1,5 +1,5 @@
-use crate::Chip8;
 use crate::commands::command::Command;
+use crate::Chip8;
 
 pub struct SetIndexRegister {
     index: u16,
@@ -7,7 +7,7 @@ pub struct SetIndexRegister {
 
 impl SetIndexRegister {
     pub fn new(index: u16) -> Self {
-        Self {index}
+        Self { index }
     }
 }
 

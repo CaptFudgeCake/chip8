@@ -4,8 +4,8 @@ use crate::commands::add_value_to_register::AddValueToRegister;
 use crate::commands::and::And;
 use crate::commands::binary_coded_decimal::BinaryCodedDecimal;
 use crate::commands::call::Call;
-use crate::commands::command::Command;
 use crate::commands::clear_screen::ClearScreen;
+use crate::commands::command::Command;
 use crate::commands::draw::Draw;
 use crate::commands::jump::Jump;
 use crate::commands::load::Load;
@@ -25,12 +25,12 @@ use crate::commands::sub::Sub;
 use crate::commands::sub_n::SubN;
 use crate::commands::xor::Xor;
 
-pub fn parse_command(command: &[u8]) -> Box<dyn Command>{
+pub fn parse_command(command: &[u8]) -> Box<dyn Command> {
     let opcode = (command[0] & 0xF0) >> 4;
     match opcode {
         0 => match command {
-            [0x00, 0xE0] => Box::new(ClearScreen{}),
-            [0x00, 0xEE] => Box::new(Return{}),
+            [0x00, 0xE0] => Box::new(ClearScreen {}),
+            [0x00, 0xEE] => Box::new(Return {}),
             _ => panic!("0NNN command can't be run since it is dependant on specific hardware"),
         },
         3 | 4 | 6 | 7 => {

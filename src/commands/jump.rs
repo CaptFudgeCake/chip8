@@ -1,5 +1,5 @@
-use crate::Chip8;
 use crate::commands::command::Command;
+use crate::Chip8;
 
 pub struct Jump {
     address: u16,
@@ -7,7 +7,7 @@ pub struct Jump {
 
 impl Jump {
     pub fn new(address: u16) -> Self {
-        Self {address}
+        Self { address }
     }
 }
 

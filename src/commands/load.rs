@@ -1,5 +1,5 @@
-use crate::Chip8;
 use crate::commands::command::Command;
+use crate::Chip8;
 
 pub struct Load {
     register_x: u8,
@@ -8,7 +8,10 @@ pub struct Load {
 
 impl Load {
     pub fn new(register_x: u8, register_y: u8) -> Self {
-        Self {register_x,register_y}
+        Self {
+            register_x,
+            register_y,
+        }
     }
 }
 

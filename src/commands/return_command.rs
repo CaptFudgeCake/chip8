@@ -1,5 +1,5 @@
-use crate::Chip8;
 use crate::commands::command::Command;
+use crate::Chip8;
 
 pub struct Return {}
 
@@ -11,6 +11,9 @@ impl Return {
 
 impl Command for Return {
     fn execute(&self, emulator: &mut Chip8) {
-        emulator.program_counter = emulator.stack.pop().expect("No value on stack to return to");
+        emulator.program_counter = emulator
+            .stack
+            .pop()
+            .expect("No value on stack to return to");
     }
 }

@@ -1,5 +1,5 @@
-use crate::Chip8;
 use crate::commands::command::Command;
+use crate::Chip8;
 
 pub struct SkipNotEqualX {
     register: u8,
@@ -8,7 +8,10 @@ pub struct SkipNotEqualX {
 
 impl SkipNotEqualX {
     pub fn new(register: u8, check_value: u8) -> Self {
-        Self {register, check_value, }
+        Self {
+            register,
+            check_value,
+        }
     }
 }
 

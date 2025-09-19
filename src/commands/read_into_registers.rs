@@ -1,5 +1,5 @@
-use crate::Chip8;
 use crate::commands::command::Command;
+use crate::Chip8;
 
 pub struct ReadIntoRegisters {
     register: u8,
@@ -7,7 +7,7 @@ pub struct ReadIntoRegisters {
 
 impl ReadIntoRegisters {
     pub fn new(register: u8) -> Self {
-        Self {register}
+        Self { register }
     }
 }
 
