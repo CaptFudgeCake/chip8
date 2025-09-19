@@ -21,6 +21,7 @@ pub(crate) enum Chip8Commands {
     SkipNotEqualXY(u8, u8),     // 9XY0
     SetIndexRegister(u16),      // ANNN
     Draw(u8, u8, u8),           // DXYN
+    AddToIndex(u8),             // Fx1E
     BinaryCodedDecimal(u8),     // FX33
     StoreRegisters(u8),         // FX55
     ReadIntoRegisters(u8),      // FX65
@@ -65,6 +66,7 @@ impl Chip8Commands {
             0xF => {
                 let x = command[0] & 0xF;
                 match command[1] {
+                    0x1E => Chip8Commands::AddToIndex(x.into()),
                     0x33 => Chip8Commands::BinaryCodedDecimal(x.into()),
                     0x55 => Chip8Commands::StoreRegisters(x.into()),
                     0x65 => Chip8Commands::ReadIntoRegisters(x.into()),
@@ -107,7 +109,7 @@ mod test {
 
     #[test]
     fn test_command_decode() {
-        let commands: [[u8; 2]; 24] = [
+        let commands = vec![
             [0x00, 0xE0],
             [0x00, 0xEE],
             [0x11, 0x11],
@@ -132,6 +134,7 @@ mod test {
             [0x2A, 0x53],
             [0x83, 0x67],
             [0xF1, 0x65],
+            [0xF1, 0x1E],
         ];
         let expected = [
             Chip8Commands::ClearScreen,
@@ -158,6 +161,7 @@ mod test {
             Chip8Commands::Call(0xA53),
             Chip8Commands::SUBN(3, 6),
             Chip8Commands::ReadIntoRegisters(1),
+            Chip8Commands::AddToIndex(1),
         ];
 
         for (i, command) in commands.into_iter().enumerate() {

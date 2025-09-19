@@ -252,6 +252,10 @@ impl Chip8 {
                     self.registers[i] = self.memory[self.index_register as usize + i];
                 }
             }
+            Chip8Commands::AddToIndex(x) => {
+                let register_value = self.registers[x as usize] as u16;
+                self.index_register = self.index_register.wrapping_add(register_value);
+            }
             default => unimplemented!("{:?} instruction not implemented", default),
         }
     }
@@ -937,6 +941,17 @@ mod test {
 
         assert_eq!(emulator.registers[0], 20);
         assert_eq!(emulator.registers[1], 21);
+    }
+
+    #[test]
+    fn test_add_to_index() {
+        let mut emulator = Chip8::new();
+        emulator.index_register = 0x200;
+        emulator.registers[5] = 10;
+
+        emulator.execute_command(Chip8Commands::AddToIndex(5));
+
+        assert_eq!(emulator.index_register, 0x20A);
     }
 
     #[test]
