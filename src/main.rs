@@ -18,7 +18,7 @@ struct Chip8 {
     memory: [u8; 4096],
     display_data: [[bool; 32]; 64],
     program_counter: u16,
-    index_regiser: u16,
+    index_register: u16,
     stack: Vec<u16>,
     delay_timer: u8,
     sound_timer: u8,
@@ -36,7 +36,7 @@ impl Chip8 {
             memory: [0; 4096],
             display_data: [[false; 32]; 64],
             program_counter: 0x200,
-            index_regiser: 0,
+            index_register: 0,
             stack: Vec::new(),
             delay_timer: 0,
             sound_timer: 0,
@@ -143,13 +143,13 @@ impl Chip8 {
                     self.registers[register as usize].overflowing_add(value);
             }
             Chip8Commands::SetIndexRegister(value) => {
-                self.index_regiser = value;
+                self.index_register = value;
             }
             Chip8Commands::Draw(x, y, bytes) => {
                 let x_start = (self.registers[x as usize] as usize) % 64;
                 let y_start = (self.registers[y as usize] as usize) % 32;
                 for byte_offset in 0..bytes {
-                    let byte = self.memory[self.index_regiser as usize + byte_offset as usize];
+                    let byte = self.memory[self.index_register as usize + byte_offset as usize];
                     for i in 0..8 {
                         let bit = ((byte >> 7 - i) & 0b1) != 0;
                         let x_pos = x_start + i;
@@ -226,15 +226,15 @@ impl Chip8 {
                 }
             }
             Chip8Commands::BinaryCodedDecimal(x) => {
-                self.memory[self.index_regiser as usize] = self.registers[x as usize] / 100;
-                self.memory[self.index_regiser as usize + 1] =
+                self.memory[self.index_register as usize] = self.registers[x as usize] / 100;
+                self.memory[self.index_register as usize + 1] =
                     self.registers[x as usize] % 100 / 10;
-                self.memory[self.index_regiser as usize + 2] =
+                self.memory[self.index_register as usize + 2] =
                     self.registers[x as usize] % 100 % 10;
             }
             Chip8Commands::StoreRegisters(x) => {
                 for i in 0..=(x as usize) {
-                    self.memory[self.index_regiser as usize + i] = self.registers[i];
+                    self.memory[self.index_register as usize + i] = self.registers[i];
                 }
             }
             Chip8Commands::Call(address) => {
@@ -249,7 +249,7 @@ impl Chip8 {
             }
             Chip8Commands::ReadIntoRegisters(x) => {
                 for i in 0..=(x as usize) {
-                    self.registers[i] = self.memory[self.index_regiser as usize + i];
+                    self.registers[i] = self.memory[self.index_register as usize + i];
                 }
             }
             default => unimplemented!("{:?} instruction not implemented", default),
@@ -325,7 +325,7 @@ mod test {
 
         emulator.execute_command(Chip8Commands::SetIndexRegister(0xFFF));
 
-        assert_eq!(emulator.index_regiser, 0xFFF);
+        assert_eq!(emulator.index_register, 0xFFF);
     }
 
     #[test]
@@ -344,7 +344,7 @@ mod test {
         emulator.memory[0x201] = 0xFF;
         emulator.memory[0x202] = 0xFF;
         emulator.memory[0x203] = 0xFF;
-        emulator.index_regiser = 0x200;
+        emulator.index_register = 0x200;
         emulator.registers[0] = 3;
         emulator.registers[1] = 2;
 
@@ -378,7 +378,7 @@ mod test {
         emulator.memory[0x201] = 0xFF;
         emulator.memory[0x202] = 0xFF;
         emulator.memory[0x203] = 0xFF;
-        emulator.index_regiser = 0x200;
+        emulator.index_register = 0x200;
         emulator.display_data[3][2] = true;
         emulator.registers[0] = 3;
         emulator.registers[1] = 2;
@@ -423,7 +423,7 @@ mod test {
         emulator.memory[0x201] = 0xFF;
         emulator.memory[0x202] = 0xFF;
         emulator.memory[0x203] = 0xFF;
-        emulator.index_regiser = 0x200;
+        emulator.index_register = 0x200;
         emulator.registers[0] = 66;
         emulator.registers[1] = 33;
 
@@ -458,7 +458,7 @@ mod test {
         emulator.memory[0x201] = 0xFF;
         emulator.memory[0x202] = 0xFF;
         emulator.memory[0x203] = 0xFF;
-        emulator.index_regiser = 0x200;
+        emulator.index_register = 0x200;
         emulator.registers[0] = 62;
         emulator.registers[1] = 30;
 
@@ -490,7 +490,7 @@ mod test {
     fn test_draw_bit_order() {
         let mut emulator = Chip8::new();
         emulator.memory[0x200] = 0b11110000;
-        emulator.index_regiser = 0x200;
+        emulator.index_register = 0x200;
         emulator.registers[0] = 0;
         emulator.registers[1] = 0;
 
@@ -836,7 +836,7 @@ mod test {
     #[test]
     fn test_binary_coded_decimal_htu() {
         let mut emulator = Chip8::new();
-        emulator.index_regiser = 0x200;
+        emulator.index_register = 0x200;
         emulator.registers[0] = 235;
 
         emulator.execute_command(Chip8Commands::BinaryCodedDecimal(0));
@@ -849,7 +849,7 @@ mod test {
     #[test]
     fn test_binary_coded_decimal_hu() {
         let mut emulator = Chip8::new();
-        emulator.index_regiser = 0x200;
+        emulator.index_register = 0x200;
         emulator.registers[0] = 205;
 
         emulator.execute_command(Chip8Commands::BinaryCodedDecimal(0));
@@ -862,7 +862,7 @@ mod test {
     #[test]
     fn test_binary_coded_decimal_u() {
         let mut emulator = Chip8::new();
-        emulator.index_regiser = 0x200;
+        emulator.index_register = 0x200;
         emulator.registers[0] = 5;
 
         emulator.execute_command(Chip8Commands::BinaryCodedDecimal(0));
@@ -875,7 +875,7 @@ mod test {
     #[test]
     fn test_binary_coded_decimal_h() {
         let mut emulator = Chip8::new();
-        emulator.index_regiser = 0x200;
+        emulator.index_register = 0x200;
         emulator.registers[0] = 200;
 
         emulator.execute_command(Chip8Commands::BinaryCodedDecimal(0));
@@ -888,7 +888,7 @@ mod test {
     #[test]
     fn test_binary_coded_decimal_t() {
         let mut emulator = Chip8::new();
-        emulator.index_regiser = 0x200;
+        emulator.index_register = 0x200;
         emulator.registers[0] = 30;
 
         emulator.execute_command(Chip8Commands::BinaryCodedDecimal(0));
@@ -901,7 +901,7 @@ mod test {
     #[test]
     fn test_store_registers_in_memory() {
         let mut emulator = Chip8::new();
-        emulator.index_regiser = 0x200;
+        emulator.index_register = 0x200;
         emulator.registers[0] = 30;
         emulator.registers[1] = 12;
         emulator.registers[2] = 89;
@@ -926,7 +926,7 @@ mod test {
     #[test]
     fn test_command_read_into_registers() {
         let mut emulator = Chip8::new();
-        emulator.index_regiser = 0x200;
+        emulator.index_register = 0x200;
         emulator.registers[0] = 0;
         emulator.registers[1] = 0;
 
