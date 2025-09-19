@@ -1,5 +1,6 @@
 mod chip8_commands;
 mod display;
+mod commands;
 
 use std::{
     fs::File,
@@ -13,6 +14,7 @@ use std::{
 
 use chip8_commands::Chip8Commands;
 use display::{display::CrossTermDisplay, Display};
+use crate::commands::command_parser::parse_command;
 
 struct Chip8 {
     memory: [u8; 4096],
@@ -80,8 +82,8 @@ impl Chip8 {
             let command =
                 &self.memory[(self.program_counter as usize)..(self.program_counter as usize + 2)];
             self.program_counter += 2;
-            let decoded_command = Chip8Commands::new(command);
-            self.execute_command(decoded_command);
+            let decoded_command = parse_command(command);
+            decoded_command.execute(self);
             if self.display_changed {
                 self.display
                     .draw_display(&self.display_data)
@@ -119,151 +121,11 @@ impl Chip8 {
             self.memory[0x050 + i] = byte;
         }
     }
-
-    fn execute_command(&mut self, command: Chip8Commands) {
-        match command {
-            Chip8Commands::ClearScreen => {
-                for row in self.display_data.iter_mut() {
-                    for pixel in row {
-                        *pixel = false;
-                    }
-                }
-            }
-            Chip8Commands::Return => {
-                self.program_counter = self.stack.pop().expect("No value on stack to return to");
-            }
-            Chip8Commands::Jump(address) => {
-                self.program_counter = address;
-            }
-            Chip8Commands::SetRegister(register, value) => {
-                self.registers[register as usize] = value;
-            }
-            Chip8Commands::AddValueToRegister(register, value) => {
-                (self.registers[register as usize], _) =
-                    self.registers[register as usize].overflowing_add(value);
-            }
-            Chip8Commands::SetIndexRegister(value) => {
-                self.index_register = value;
-            }
-            Chip8Commands::Draw(x, y, bytes) => {
-                let x_start = (self.registers[x as usize] as usize) % 64;
-                let y_start = (self.registers[y as usize] as usize) % 32;
-                for byte_offset in 0..bytes {
-                    let byte = self.memory[self.index_register as usize + byte_offset as usize];
-                    for i in 0..8 {
-                        let bit = ((byte >> 7 - i) & 0b1) != 0;
-                        let x_pos = x_start + i;
-                        let y_pos = y_start + byte_offset as usize;
-                        if x_pos < 64 && y_pos < 32 {
-                            if self.display_data[x_pos][y_pos] != bit {
-                                self.registers[0xF] = 1;
-                            }
-                            self.display_data[x_pos][y_pos] ^= bit;
-                        }
-                    }
-                }
-
-                self.display_changed = true;
-            }
-            Chip8Commands::SkipEqualX(x, value) => {
-                if self.registers[x as usize] == value {
-                    self.program_counter += 2
-                }
-            }
-            Chip8Commands::SkipNotEqualX(x, value) => {
-                if self.registers[x as usize] != value {
-                    self.program_counter += 2
-                }
-            }
-            Chip8Commands::SkipEqualXY(x, y) => {
-                if self.registers[x as usize] == self.registers[y as usize] {
-                    self.program_counter += 2
-                }
-            }
-            Chip8Commands::Load(x, y) => self.registers[x as usize] = self.registers[y as usize],
-            Chip8Commands::OR(x, y) => {
-                self.registers[x as usize] |= self.registers[y as usize];
-            }
-            Chip8Commands::AND(x, y) => {
-                self.registers[x as usize] &= self.registers[y as usize];
-            }
-            Chip8Commands::XOR(x, y) => {
-                self.registers[x as usize] ^= self.registers[y as usize];
-            }
-            Chip8Commands::ADD(x, y) => {
-                let (value, overflow) =
-                    self.registers[x as usize].overflowing_add(self.registers[y as usize]);
-                self.registers[x as usize] = value;
-                self.registers[0xF] = overflow as u8;
-            }
-            Chip8Commands::SUB(x, y) => {
-                let (value, overflow) =
-                    self.registers[x as usize].overflowing_sub(self.registers[y as usize]);
-                self.registers[x as usize] = value;
-                self.registers[0xF] = !overflow as u8;
-            }
-            Chip8Commands::ShiftRight(x, y) => {
-                if self.use_old_bit_shift {
-                    self.registers[x as usize] = self.registers[y as usize] >> 1;
-                    self.registers[0xF] = self.registers[y as usize] & 0b1;
-                } else {
-                    self.registers[0xF] = self.registers[x as usize] & 0b1;
-                    self.registers[x as usize] = self.registers[x as usize] >> 1;
-                }
-            }
-            Chip8Commands::ShiftLeft(x, y) => {
-                if self.use_old_bit_shift {
-                    self.registers[x as usize] = self.registers[y as usize] << 1;
-                    self.registers[0xF] = (self.registers[y as usize] & 0x80) >> 7;
-                } else {
-                    self.registers[0xF] = (self.registers[x as usize] & 0x80) >> 7;
-                    self.registers[x as usize] = self.registers[x as usize] << 1;
-                }
-            }
-            Chip8Commands::SkipNotEqualXY(x, y) => {
-                if self.registers[x as usize] != self.registers[y as usize] {
-                    self.program_counter += 2
-                }
-            }
-            Chip8Commands::BinaryCodedDecimal(x) => {
-                self.memory[self.index_register as usize] = self.registers[x as usize] / 100;
-                self.memory[self.index_register as usize + 1] =
-                    self.registers[x as usize] % 100 / 10;
-                self.memory[self.index_register as usize + 2] =
-                    self.registers[x as usize] % 100 % 10;
-            }
-            Chip8Commands::StoreRegisters(x) => {
-                for i in 0..=(x as usize) {
-                    self.memory[self.index_register as usize + i] = self.registers[i];
-                }
-            }
-            Chip8Commands::Call(address) => {
-                self.stack.push(self.program_counter);
-                self.program_counter = address;
-            }
-            Chip8Commands::SUBN(x, y) => {
-                let (value, overflow) =
-                    self.registers[y as usize].overflowing_sub(self.registers[x as usize]);
-                self.registers[x as usize] = value;
-                self.registers[0xF] = !overflow as u8;
-            }
-            Chip8Commands::ReadIntoRegisters(x) => {
-                for i in 0..=(x as usize) {
-                    self.registers[i] = self.memory[self.index_register as usize + i];
-                }
-            }
-            Chip8Commands::AddToIndex(x) => {
-                let register_value = self.registers[x as usize] as u16;
-                self.index_register = self.index_register.wrapping_add(register_value);
-            }
-            default => unimplemented!("{:?} instruction not implemented", default),
-        }
-    }
 }
 
 fn main() {
     let mut program: Vec<u8> = Vec::new();
-    let mut file = File::open("roms/3-corax+.ch8").unwrap();
+    let mut file = File::open("roms/4-flags.ch8").unwrap();
     file.read_to_end(&mut program)
         .expect("Failed to read program");
     let mut emulator = Chip8::new();
