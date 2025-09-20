@@ -28,3 +28,53 @@ impl Command for ShiftRight {
         }
     }
 }
+
+mod test {
+    use crate::Chip8;
+    use crate::commands::command::Command;
+    use crate::commands::shift_right::ShiftRight;
+
+    #[test]
+    fn test_shift_right_bit_0() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 0xFE;
+        ShiftRight::new(0, 5).execute(&mut emulator);
+
+        assert_eq!(emulator.registers[0], 0x7F);
+        assert_eq!(emulator.registers[0xF], 0);
+    }
+
+    #[test]
+    fn test_shift_right_bit_1() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 0xFF;
+        ShiftRight::new(0, 5).execute(&mut emulator);
+
+        assert_eq!(emulator.registers[0], 0x7F);
+        assert_eq!(emulator.registers[0xF], 1);
+    }
+
+    #[test]
+    fn test_shift_right_bit_0_vy_used() {
+        let mut emulator = Chip8::new();
+        emulator.use_old_bit_shift = true;
+        emulator.registers[5] = 0xFE;
+
+        ShiftRight::new(0, 5).execute(&mut emulator);
+
+        assert_eq!(emulator.registers[0], 0x7F);
+        assert_eq!(emulator.registers[0xF], 0);
+    }
+
+    #[test]
+    fn test_shift_right_bit_1_vy_used() {
+        let mut emulator = Chip8::new();
+        emulator.use_old_bit_shift = true;
+        emulator.registers[5] = 0xFF;
+
+        ShiftRight::new(0, 5).execute(&mut emulator);
+
+        assert_eq!(emulator.registers[0], 0x7F);
+        assert_eq!(emulator.registers[0xF], 1);
+    }
+}

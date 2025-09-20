@@ -16,3 +16,18 @@ impl Command for Jump {
         emulator.program_counter = self.address;
     }
 }
+
+mod test{
+    use crate::Chip8;
+    use crate::commands::command::Command;
+    use crate::commands::jump::Jump;
+
+    #[test]
+    fn test_jump() {
+        let mut emulator = Chip8::new();
+
+        Jump::new(0x22A).execute(&mut emulator);
+
+        assert_eq!(emulator.program_counter, 0x22a);
+    }
+}

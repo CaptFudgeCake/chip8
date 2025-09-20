@@ -21,3 +21,20 @@ impl Command for Or {
             emulator.registers[self.register_y as usize];
     }
 }
+
+mod test {
+    use crate::Chip8;
+    use crate::commands::command::Command;
+    use crate::commands::or::Or;
+
+    #[test]
+    fn test_bitwise_or() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 0b10101110;
+        emulator.registers[5] = 0b01010000;
+
+        Or::new(0, 5).execute(&mut emulator);
+
+        assert_eq!(emulator.registers[0], 0xFE)
+    }
+}

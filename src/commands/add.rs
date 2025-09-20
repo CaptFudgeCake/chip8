@@ -23,3 +23,32 @@ impl Command for Add {
         emulator.registers[0xF] = overflow as u8;
     }
 }
+
+mod test {
+    use crate::Chip8;
+    use crate::commands::add::Add;
+    use crate::commands::command::Command;
+
+    #[test]
+    fn test_add_registers() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 6;
+        emulator.registers[5] = 5;
+
+        Add::new(0, 5).execute(&mut emulator);
+
+        assert_eq!(emulator.registers[0], 11);
+    }
+
+    #[test]
+    fn test_add_registers_overflow() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 255;
+        emulator.registers[5] = 5;
+
+        Add::new(0, 5).execute(&mut emulator);
+
+        assert_eq!(emulator.registers[0], 4);
+        assert_eq!(emulator.registers[0xF], 1);
+    }
+}

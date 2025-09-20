@@ -16,3 +16,18 @@ impl Command for SetIndexRegister {
         emulator.index_register = self.index;
     }
 }
+
+mod test {
+    use crate::Chip8;
+    use crate::commands::command::Command;
+    use crate::commands::set_index_register::SetIndexRegister;
+
+    #[test]
+    fn test_set_index_register() {
+        let mut emulator = Chip8::new();
+
+        SetIndexRegister::new(0xFFF).execute(&mut emulator);
+
+        assert_eq!(emulator.index_register, 0xFFF);
+    }
+}

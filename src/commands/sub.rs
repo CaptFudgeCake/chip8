@@ -23,3 +23,33 @@ impl Command for Sub {
         emulator.registers[0xF] = !overflow as u8;
     }
 }
+
+mod test {
+    use crate::Chip8;
+    use crate::commands::command::Command;
+    use crate::commands::sub::Sub;
+
+    #[test]
+    fn test_sub_registers() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 6;
+        emulator.registers[5] = 5;
+
+        Sub::new(0, 5).execute(&mut emulator);
+
+        assert_eq!(emulator.registers[0], 1);
+        assert_eq!(emulator.registers[0xF], 1);
+    }
+
+    #[test]
+    fn test_sub_registers_borrow() {
+        let mut emulator = Chip8::new();
+        emulator.registers[0] = 5;
+        emulator.registers[5] = 6;
+
+        Sub::new(0, 5).execute(&mut emulator);
+
+        assert_eq!(emulator.registers[0], 255);
+        assert_eq!(emulator.registers[0xF], 0);
+    }
+}
