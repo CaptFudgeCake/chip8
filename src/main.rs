@@ -135,28 +135,4 @@ fn main() {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::commands::add::Add;
-    use crate::commands::add_to_index::AddToIndex;
-    use crate::commands::add_value_to_register::AddValueToRegister;
-    use crate::commands::and::And;
-    use crate::commands::binary_coded_decimal::BinaryCodedDecimal;
-    use crate::commands::call::Call;
-    use crate::commands::command::Command;
-    use crate::commands::draw::Draw;
-    use crate::commands::load::Load;
-    use crate::commands::or::Or;
-    use crate::commands::read_into_registers::ReadIntoRegisters;
-    use crate::commands::return_command::Return;
-    use crate::commands::set_index_register::SetIndexRegister;
-    use crate::commands::set_register::SetRegister;
-    use crate::commands::shift_left::ShiftLeft;
-    use crate::commands::shift_right::ShiftRight;
-    use crate::commands::skip_equal_x::SkipEqualX;
-    use crate::commands::skip_equal_x_y::SkipEqualXY;
-    use crate::commands::skip_not_equal_x::SkipNotEqualX;
-    use crate::commands::skip_not_equal_xy::SkipNotEqualXY;
-    use crate::commands::store_registers::StoreRegisters;
-    use crate::commands::sub::Sub;
-    use crate::commands::sub_n::SubN;
-    use crate::commands::xor::Xor;
 }
