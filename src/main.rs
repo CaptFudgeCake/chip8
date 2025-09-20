@@ -13,7 +13,6 @@ use std::{
 };
 
 use crate::commands::command_parser::parse_command;
-use chip8_commands::Chip8Commands;
 use display::{display::CrossTermDisplay, Display};
 
 struct Chip8 {
@@ -125,7 +124,7 @@ impl Chip8 {
 
 fn main() {
     let mut program: Vec<u8> = Vec::new();
-    let mut file = File::open("roms/4-flags.ch8").unwrap();
+    let mut file = File::open("roms/5-quirks.ch8").unwrap();
     file.read_to_end(&mut program)
         .expect("Failed to read program");
     let mut emulator = Chip8::new();
@@ -135,32 +134,39 @@ fn main() {
 
 #[cfg(test)]
 mod test {
-    use self::chip8_commands::Chip8Commands;
     use super::*;
-
-    #[test]
-    fn test_clear_screen() {
-        let mut emulator = Chip8::new();
-        for x in 0..64 {
-            for y in 0..32 {
-                emulator.display_data[x][y] = true;
-            }
-        }
-
-        emulator.execute_command(Chip8Commands::ClearScreen);
-
-        for row in emulator.display_data {
-            for pixel in row {
-                assert!(!pixel)
-            }
-        }
-    }
+    use crate::commands::add::Add;
+    use crate::commands::add_to_index::AddToIndex;
+    use crate::commands::add_value_to_register::AddValueToRegister;
+    use crate::commands::and::And;
+    use crate::commands::binary_coded_decimal::BinaryCodedDecimal;
+    use crate::commands::call::Call;
+    use crate::commands::clear_screen::ClearScreen;
+    use crate::commands::command::Command;
+    use crate::commands::draw::Draw;
+    use crate::commands::jump::Jump;
+    use crate::commands::load::Load;
+    use crate::commands::or::Or;
+    use crate::commands::read_into_registers::ReadIntoRegisters;
+    use crate::commands::return_command::Return;
+    use crate::commands::set_index_register::SetIndexRegister;
+    use crate::commands::set_register::SetRegister;
+    use crate::commands::shift_left::ShiftLeft;
+    use crate::commands::shift_right::ShiftRight;
+    use crate::commands::skip_equal_x::SkipEqualX;
+    use crate::commands::skip_equal_x_y::SkipEqualXY;
+    use crate::commands::skip_not_equal_x::SkipNotEqualX;
+    use crate::commands::skip_not_equal_xy::SkipNotEqualXY;
+    use crate::commands::store_registers::StoreRegisters;
+    use crate::commands::sub::Sub;
+    use crate::commands::sub_n::SubN;
+    use crate::commands::xor::Xor;
 
     #[test]
     fn test_jump() {
         let mut emulator = Chip8::new();
 
-        emulator.execute_command(Chip8Commands::Jump(0x22A));
+        Jump::new(0x22A).execute(&mut emulator);
 
         assert_eq!(emulator.program_counter, 0x22a);
     }
@@ -169,8 +175,8 @@ mod test {
     fn test_add_to_register() {
         let mut emulator = Chip8::new();
 
-        emulator.execute_command(Chip8Commands::AddValueToRegister(2, 6));
-        emulator.execute_command(Chip8Commands::AddValueToRegister(2, 9));
+        AddValueToRegister::new(2, 6).execute(&mut emulator);
+        AddValueToRegister::new(2, 9).execute(&mut emulator);
 
         assert_eq!(emulator.registers[2], 15);
     }
@@ -179,8 +185,8 @@ mod test {
     fn test_add_to_register_overflow_shouldnt_fail() {
         let mut emulator = Chip8::new();
 
-        emulator.execute_command(Chip8Commands::AddValueToRegister(2, 129));
-        emulator.execute_command(Chip8Commands::AddValueToRegister(2, 128));
+        AddValueToRegister::new(2, 129).execute(&mut emulator);
+        AddValueToRegister::new(2, 128).execute(&mut emulator);
 
         assert_eq!(emulator.registers[2], 1);
     }
@@ -189,7 +195,7 @@ mod test {
     fn test_set_index_register() {
         let mut emulator = Chip8::new();
 
-        emulator.execute_command(Chip8Commands::SetIndexRegister(0xFFF));
+        SetIndexRegister::new(0xFFF).execute(&mut emulator);
 
         assert_eq!(emulator.index_register, 0xFFF);
     }
@@ -198,7 +204,7 @@ mod test {
     fn test_set_register() {
         let mut emulator = Chip8::new();
 
-        emulator.execute_command(Chip8Commands::SetRegister(2, 69));
+        SetRegister::new(2, 69).execute(&mut emulator);
 
         assert_eq!(emulator.registers[2], 69);
     }
@@ -214,9 +220,9 @@ mod test {
         emulator.registers[0] = 3;
         emulator.registers[1] = 2;
 
-        let command = Chip8Commands::Draw(0, 1, 4);
+        let command = Draw::new(0, 1, 4);
 
-        emulator.execute_command(command);
+        command.execute(&mut emulator);
 
         for x in 0..64 {
             for y in 0..32 {
@@ -249,9 +255,9 @@ mod test {
         emulator.registers[0] = 3;
         emulator.registers[1] = 2;
 
-        let command = Chip8Commands::Draw(0, 1, 4);
+        let command = Draw::new(0, 1, 4);
 
-        emulator.execute_command(command);
+        command.execute(&mut emulator);
 
         for x in 0..64 {
             for y in 0..32 {
@@ -293,9 +299,9 @@ mod test {
         emulator.registers[0] = 66;
         emulator.registers[1] = 33;
 
-        let command = Chip8Commands::Draw(0, 1, 4);
+        let command = Draw::new(0, 1, 4);
 
-        emulator.execute_command(command);
+        command.execute(&mut emulator);
 
         for x in 0..64 {
             for y in 0..32 {
@@ -328,9 +334,9 @@ mod test {
         emulator.registers[0] = 62;
         emulator.registers[1] = 30;
 
-        let command = Chip8Commands::Draw(0, 1, 4);
+        let command = Draw::new(0, 1, 4);
 
-        emulator.execute_command(command);
+        command.execute(&mut emulator);
 
         for x in 0..64 {
             for y in 0..32 {
@@ -360,9 +366,9 @@ mod test {
         emulator.registers[0] = 0;
         emulator.registers[1] = 0;
 
-        let command = Chip8Commands::Draw(0, 1, 1);
+        let command = Draw::new(0, 1, 1);
 
-        emulator.execute_command(command);
+        command.execute(&mut emulator);
 
         for x in 0..64 {
             for y in 0..32 {
@@ -390,7 +396,7 @@ mod test {
         emulator.stack = vec![0x208];
         emulator.program_counter = 0x500;
 
-        emulator.execute_command(Chip8Commands::Return);
+        Return::new().execute(&mut emulator);
 
         assert_eq!(emulator.program_counter, 0x208);
     }
@@ -400,9 +406,9 @@ mod test {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 6;
         emulator.program_counter = 0x200;
-        let command = Chip8Commands::SkipEqualX(0, 0x6);
+        let command = SkipEqualX::new(0, 0x6);
 
-        emulator.execute_command(command);
+        command.execute(&mut emulator);
 
         assert_eq!(emulator.program_counter, 0x202)
     }
@@ -412,9 +418,9 @@ mod test {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 7;
         emulator.program_counter = 0x200;
-        let command = Chip8Commands::SkipEqualX(0, 0x6);
+        let command = SkipEqualX::new(0, 0x6);
 
-        emulator.execute_command(command);
+        command.execute(&mut emulator);
 
         assert_eq!(emulator.program_counter, 0x200)
     }
@@ -424,9 +430,7 @@ mod test {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 6;
         emulator.program_counter = 0x200;
-        let command = Chip8Commands::SkipNotEqualX(0, 0x7);
-
-        emulator.execute_command(command);
+        SkipNotEqualX::new(0, 0x7).execute(&mut emulator);
 
         assert_eq!(emulator.program_counter, 0x202)
     }
@@ -436,9 +440,7 @@ mod test {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 7;
         emulator.program_counter = 0x200;
-        let command = Chip8Commands::SkipNotEqualX(0, 0x7);
-
-        emulator.execute_command(command);
+        SkipNotEqualX::new(0, 0x7).execute(&mut emulator);
 
         assert_eq!(emulator.program_counter, 0x200)
     }
@@ -449,9 +451,7 @@ mod test {
         emulator.registers[0] = 6;
         emulator.registers[1] = 6;
         emulator.program_counter = 0x200;
-        let command = Chip8Commands::SkipEqualXY(0, 1);
-
-        emulator.execute_command(command);
+        SkipEqualXY::new(0, 1).execute(&mut emulator);
 
         assert_eq!(emulator.program_counter, 0x202)
     }
@@ -462,9 +462,7 @@ mod test {
         emulator.registers[0] = 7;
         emulator.registers[1] = 6;
         emulator.program_counter = 0x200;
-        let command = Chip8Commands::SkipEqualXY(0, 1);
-
-        emulator.execute_command(command);
+        SkipEqualXY::new(0, 1).execute(&mut emulator);
 
         assert_eq!(emulator.program_counter, 0x200)
     }
@@ -475,9 +473,7 @@ mod test {
         emulator.registers[0] = 6;
         emulator.registers[1] = 6;
         emulator.program_counter = 0x200;
-        let command = Chip8Commands::SkipNotEqualXY(0, 1);
-
-        emulator.execute_command(command);
+        SkipNotEqualXY::new(0, 1).execute(&mut emulator);
 
         assert_eq!(emulator.program_counter, 0x200)
     }
@@ -488,9 +484,7 @@ mod test {
         emulator.registers[0] = 7;
         emulator.registers[1] = 6;
         emulator.program_counter = 0x200;
-        let command = Chip8Commands::SkipNotEqualXY(0, 1);
-
-        emulator.execute_command(command);
+        SkipNotEqualXY::new(0, 1).execute(&mut emulator);
 
         assert_eq!(emulator.program_counter, 0x202)
     }
@@ -500,8 +494,7 @@ mod test {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 0;
         emulator.registers[5] = 70;
-        let command = Chip8Commands::Load(0, 5);
-        emulator.execute_command(command);
+        Load::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 70);
     }
@@ -512,7 +505,7 @@ mod test {
         emulator.registers[0] = 0b10101110;
         emulator.registers[5] = 0b01010000;
 
-        emulator.execute_command(Chip8Commands::OR(0, 5));
+        Or::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 0xFE)
     }
@@ -523,7 +516,7 @@ mod test {
         emulator.registers[0] = 0b10101111;
         emulator.registers[5] = 0b01010001;
 
-        emulator.execute_command(Chip8Commands::AND(0, 5));
+        And::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 1)
     }
@@ -534,7 +527,7 @@ mod test {
         emulator.registers[0] = 0b10101111;
         emulator.registers[5] = 0b01010001;
 
-        emulator.execute_command(Chip8Commands::XOR(0, 5));
+        Xor::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 0b11111110);
     }
@@ -545,7 +538,7 @@ mod test {
         emulator.registers[0] = 6;
         emulator.registers[5] = 5;
 
-        emulator.execute_command(Chip8Commands::ADD(0, 5));
+        Add::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 11);
     }
@@ -556,7 +549,7 @@ mod test {
         emulator.registers[0] = 255;
         emulator.registers[5] = 5;
 
-        emulator.execute_command(Chip8Commands::ADD(0, 5));
+        Add::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 4);
         assert_eq!(emulator.registers[0xF], 1);
@@ -568,7 +561,7 @@ mod test {
         emulator.registers[0] = 6;
         emulator.registers[5] = 5;
 
-        emulator.execute_command(Chip8Commands::SUB(0, 5));
+        Sub::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 1);
         assert_eq!(emulator.registers[0xF], 1);
@@ -580,7 +573,7 @@ mod test {
         emulator.registers[0] = 5;
         emulator.registers[5] = 6;
 
-        emulator.execute_command(Chip8Commands::SUB(0, 5));
+        Sub::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 255);
         assert_eq!(emulator.registers[0xF], 0);
@@ -592,7 +585,7 @@ mod test {
         emulator.registers[0] = 5;
         emulator.registers[5] = 6;
 
-        emulator.execute_command(Chip8Commands::SUBN(0, 5));
+        SubN::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 1);
         assert_eq!(emulator.registers[0xF], 1);
@@ -604,7 +597,7 @@ mod test {
         emulator.registers[0] = 6;
         emulator.registers[5] = 5;
 
-        emulator.execute_command(Chip8Commands::SUBN(0, 5));
+        SubN::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 255);
         assert_eq!(emulator.registers[0xF], 0);
@@ -614,7 +607,7 @@ mod test {
     fn test_shift_right_bit_0() {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 0xFE;
-        emulator.execute_command(Chip8Commands::ShiftRight(0, 5));
+        ShiftRight::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 0x7F);
         assert_eq!(emulator.registers[0xF], 0);
@@ -624,7 +617,7 @@ mod test {
     fn test_shift_right_bit_1() {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 0xFF;
-        emulator.execute_command(Chip8Commands::ShiftRight(0, 5));
+        ShiftRight::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 0x7F);
         assert_eq!(emulator.registers[0xF], 1);
@@ -636,7 +629,7 @@ mod test {
         emulator.use_old_bit_shift = true;
         emulator.registers[5] = 0xFE;
 
-        emulator.execute_command(Chip8Commands::ShiftRight(0, 5));
+        ShiftRight::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 0x7F);
         assert_eq!(emulator.registers[0xF], 0);
@@ -648,7 +641,7 @@ mod test {
         emulator.use_old_bit_shift = true;
         emulator.registers[5] = 0xFF;
 
-        emulator.execute_command(Chip8Commands::ShiftRight(0, 5));
+        ShiftRight::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 0x7F);
         assert_eq!(emulator.registers[0xF], 1);
@@ -658,7 +651,7 @@ mod test {
     fn test_shift_left_bit_1() {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 0xFF;
-        emulator.execute_command(Chip8Commands::ShiftLeft(0, 5));
+        ShiftLeft::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 0xFE);
         assert_eq!(emulator.registers[0xF], 1);
@@ -669,7 +662,7 @@ mod test {
         let mut emulator = Chip8::new();
         emulator.registers[0] = 0x7F;
 
-        emulator.execute_command(Chip8Commands::ShiftLeft(0, 5));
+        ShiftLeft::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 0xFE);
         assert_eq!(emulator.registers[0xF], 0);
@@ -681,7 +674,7 @@ mod test {
         emulator.use_old_bit_shift = true;
         emulator.registers[5] = 0xFF;
 
-        emulator.execute_command(Chip8Commands::ShiftLeft(0, 5));
+        ShiftLeft::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 0xFE);
         assert_eq!(emulator.registers[0xF], 1);
@@ -693,7 +686,7 @@ mod test {
         emulator.use_old_bit_shift = true;
         emulator.registers[5] = 0x7F;
 
-        emulator.execute_command(Chip8Commands::ShiftLeft(0, 5));
+        ShiftLeft::new(0, 5).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 0xFE);
         assert_eq!(emulator.registers[0xF], 0);
@@ -705,7 +698,7 @@ mod test {
         emulator.index_register = 0x200;
         emulator.registers[0] = 235;
 
-        emulator.execute_command(Chip8Commands::BinaryCodedDecimal(0));
+        BinaryCodedDecimal::new(0).execute(&mut emulator);
 
         assert_eq!(emulator.memory[0x200], 2);
         assert_eq!(emulator.memory[0x201], 3);
@@ -718,7 +711,7 @@ mod test {
         emulator.index_register = 0x200;
         emulator.registers[0] = 205;
 
-        emulator.execute_command(Chip8Commands::BinaryCodedDecimal(0));
+        BinaryCodedDecimal::new(0).execute(&mut emulator);
 
         assert_eq!(emulator.memory[0x200], 2);
         assert_eq!(emulator.memory[0x201], 0);
@@ -731,7 +724,7 @@ mod test {
         emulator.index_register = 0x200;
         emulator.registers[0] = 5;
 
-        emulator.execute_command(Chip8Commands::BinaryCodedDecimal(0));
+        BinaryCodedDecimal::new(0).execute(&mut emulator);
 
         assert_eq!(emulator.memory[0x200], 0);
         assert_eq!(emulator.memory[0x201], 0);
@@ -744,7 +737,7 @@ mod test {
         emulator.index_register = 0x200;
         emulator.registers[0] = 200;
 
-        emulator.execute_command(Chip8Commands::BinaryCodedDecimal(0));
+        BinaryCodedDecimal::new(0).execute(&mut emulator);
 
         assert_eq!(emulator.memory[0x200], 2);
         assert_eq!(emulator.memory[0x201], 0);
@@ -757,7 +750,7 @@ mod test {
         emulator.index_register = 0x200;
         emulator.registers[0] = 30;
 
-        emulator.execute_command(Chip8Commands::BinaryCodedDecimal(0));
+        BinaryCodedDecimal::new(0).execute(&mut emulator);
 
         assert_eq!(emulator.memory[0x200], 0);
         assert_eq!(emulator.memory[0x201], 3);
@@ -777,7 +770,7 @@ mod test {
         emulator.registers[6] = 67;
         emulator.registers[7] = 88;
 
-        emulator.execute_command(Chip8Commands::StoreRegisters(7));
+        StoreRegisters::new(7).execute(&mut emulator);
 
         assert_eq!(emulator.memory[0x200], 30);
         assert_eq!(emulator.memory[0x201], 12);
@@ -799,7 +792,7 @@ mod test {
         emulator.memory[0x200] = 20;
         emulator.memory[0x201] = 21;
 
-        emulator.execute_command(Chip8Commands::ReadIntoRegisters(1));
+        ReadIntoRegisters::new(1).execute(&mut emulator);
 
         assert_eq!(emulator.registers[0], 20);
         assert_eq!(emulator.registers[1], 21);
@@ -811,7 +804,7 @@ mod test {
         emulator.index_register = 0x200;
         emulator.registers[5] = 10;
 
-        emulator.execute_command(Chip8Commands::AddToIndex(5));
+        AddToIndex::new(5).execute(&mut emulator);
 
         assert_eq!(emulator.index_register, 0x20A);
     }
@@ -821,7 +814,7 @@ mod test {
         let mut emulator = Chip8::new();
         emulator.program_counter = 0x200;
 
-        emulator.execute_command(Chip8Commands::Call(0x543));
+        Call::new(0x543).execute(&mut emulator);
 
         assert_eq!(emulator.stack.len(), 1);
         assert_eq!(emulator.stack[0], 0x200);
