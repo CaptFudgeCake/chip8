@@ -3,7 +3,7 @@ pub mod add_to_index;
 pub mod add_value_to_register;
 pub mod and;
 pub mod binary_coded_decimal;
-mod call;
+pub mod call;
 pub mod clear_screen;
 pub mod command;
 pub mod command_parser;

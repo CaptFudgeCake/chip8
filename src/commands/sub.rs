@@ -19,7 +19,7 @@ impl Command for Sub {
     fn execute(&self, emulator: &mut Chip8) {
         let (value, overflow) = emulator.registers[self.register_x as usize]
             .overflowing_sub(emulator.registers[self.register_y as usize]);
-        emulator.registers[self.register_y as usize] = value;
+        emulator.registers[self.register_x as usize] = value;
         emulator.registers[0xF] = !overflow as u8;
     }
 }

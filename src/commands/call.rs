@@ -1,5 +1,4 @@
 use crate::commands::command::Command;
-use crate::commands::xor::Xor;
 use crate::Chip8;
 
 pub struct Call {
