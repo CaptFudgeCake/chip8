@@ -25,3 +25,5 @@ pub mod store_registers;
 pub mod sub;
 pub mod sub_n;
 pub mod xor;
+mod set_delay_timer;
+mod set_register_from_delay;

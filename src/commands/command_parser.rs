@@ -12,8 +12,10 @@ use crate::commands::load::Load;
 use crate::commands::or::Or;
 use crate::commands::read_into_registers::ReadIntoRegisters;
 use crate::commands::return_command::Return;
+use crate::commands::set_delay_timer::SetDelayTimer;
 use crate::commands::set_index_register::SetIndexRegister;
 use crate::commands::set_register::SetRegister;
+use crate::commands::set_register_from_delay::SetRegisterFromDelay;
 use crate::commands::shift_left::ShiftLeft;
 use crate::commands::shift_right::ShiftRight;
 use crate::commands::skip_equal_x::SkipEqualX;
@@ -63,6 +65,8 @@ pub fn parse_command(command: &[u8]) -> Box<dyn Command> {
         0xF => {
             let x = command[0] & 0xF;
             match command[1] {
+                0x07 => Box::new(SetRegisterFromDelay::new(x.into())),
+                0x15 => Box::new(SetDelayTimer::new(x.into())),
                 0x1E => Box::new(AddToIndex::new(x.into())),
                 0x33 => Box::new(BinaryCodedDecimal::new(x.into())),
                 0x55 => Box::new(StoreRegisters::new(x.into())),
