@@ -13,7 +13,7 @@ use std::{
 };
 
 use crate::commands::command_parser::parse_command;
-use display::{display::CrossTermDisplay, Display};
+use display::{crossterm::cross_term_display::CrossTermDisplay, display::Display};
 
 struct Chip8 {
     memory: [u8; 4096],
